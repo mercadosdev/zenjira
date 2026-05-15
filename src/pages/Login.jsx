@@ -78,7 +78,7 @@ export default function Login() {
           <div className="bg-igs-primary w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white shadow-lg shadow-purple-900/20">
             <LayoutDashboard size={32} />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">IGS Kanban</h1>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Zenjira</h1>
           <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2">Mercados & Delivery</p>
         </div>
 
