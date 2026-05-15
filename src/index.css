@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@8..144,100..1000&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,12 +7,10 @@
 /* VARIÁVEIS CSS DE TEMA DINÂMICO */
 @layer base {
   :root {
-    /* MODO CLARO: Roxo Escuro Original (#5e0d8b) e Accent (#8e24c7) */
     --color-primary: 94 13 139;  
     --color-accent: 142 36 199;  
   }
   .dark {
-    /* MODO ESCURO: Roxo Claro Vibrante (#b657ff) e Accent (#d8b4fe) para contraste perfeito */
     --color-primary: 182 87 255; 
     --color-accent: 216 180 254; 
   }
@@ -32,6 +32,5 @@
 }
 
 body {
-  /* Aplica o fundo corretamente baseado no tema escolhido */
   @apply bg-igs-bg dark:bg-igs-dark text-slate-800 dark:text-slate-200 antialiased transition-colors duration-300;
 }

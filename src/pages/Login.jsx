@@ -1,16 +1,23 @@
 import { useState } from 'react';
 import { signInWithPopup } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../config/firebase';
 import { useAppStore } from '../store/store';
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, LogIn, KeyRound, Building2, User, ShieldCheck, Sun, Moon } from 'lucide-react';
 import { Avatar } from '../components/CustomUI';
+import { hashPassword } from '../utils/crypto';
 
 export default function Login() {
   const [step, setStep] = useState(1); 
   const [userRole, setUserRole] = useState(''); 
+  
+  // NOVOS ESTADOS PARA SENHA MESTRA
   const [masterKey, setMasterKey] = useState('');
+  const [confirmKey, setConfirmKey] = useState('');
+  const [isFirstTime, setIsFirstTime] = useState(false);
+  const [storedHash, setStoredHash] = useState('');
+  
   const [loading, setLoading] = useState(false);
   
   const { setAuthorized, setUser, theme, toggleTheme } = useAppStore();
@@ -27,8 +34,17 @@ export default function Login() {
         const data = userDoc.data();
         setUser(user, data.role);
         setUserRole(data.role);
+        
+        // Verifica se o usuário já tem uma senha mestra criada
+        if (data.masterPasswordHash) {
+          setIsFirstTime(false);
+          setStoredHash(data.masterPasswordHash);
+        } else {
+          setIsFirstTime(true);
+        }
         setStep(3);
       } else {
+        setIsFirstTime(true);
         setStep(2);
       }
     } catch (error) {
@@ -53,20 +69,51 @@ export default function Login() {
       };
       await setDoc(doc(db, 'users', user.uid), userData);
       setUser(user, userRole);
+      setIsFirstTime(true);
       setStep(3);
     } catch (error) { console.error(error); } 
     finally { setLoading(false); }
   };
 
-  const handleEnterApp = () => {
-    if (masterKey.length < 6) return alert("Chave deve ter 6+ caracteres.");
-    sessionStorage.setItem('masterKey', masterKey);
-    setAuthorized(true); 
-    navigate('/hubs');
+  const handleEnterApp = async () => {
+    if (isFirstTime) {
+      // FLUXO DE CRIAÇÃO DE SENHA MESTRA
+      if (masterKey.length < 6) return alert("A senha deve ter no mínimo 6 caracteres.");
+      if (masterKey !== confirmKey) return alert("As senhas não coincidem.");
+      
+      setLoading(true);
+      try {
+        const hash = hashPassword(masterKey);
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          masterPasswordHash: hash
+        });
+        sessionStorage.setItem('masterKey', masterKey); 
+        setAuthorized(true); 
+        navigate('/hubs');
+      } catch(e) {
+         console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // FLUXO DE VALIDAÇÃO DE SENHA MESTRA
+      if (!masterKey) return alert("Insira sua senha.");
+      setLoading(true);
+      const hash = hashPassword(masterKey);
+      
+      if (hash === storedHash) {
+        sessionStorage.setItem('masterKey', masterKey);
+        setAuthorized(true); 
+        navigate('/hubs');
+      } else {
+        alert("Senha incorreta. Tente novamente.");
+        setLoading(false);
+      }
+    }
   };
 
   return (
-    <div className="min-h-screen bg-igs-bg dark:bg-igs-dark flex items-center justify-center p-6 font-sans transition-colors duration-300 relative">
+    <div className="min-h-screen bg-igs-bg dark:bg-igs-dark flex items-center justify-center p-6 transition-colors duration-300 relative">
       
       <button onClick={toggleTheme} className="absolute top-6 right-6 p-3 bg-white dark:bg-slate-800 rounded-full shadow-md text-slate-500 hover:text-igs-primary dark:text-slate-400 dark:hover:text-amber-400 transition-colors">
         {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -78,7 +125,7 @@ export default function Login() {
           <div className="bg-igs-primary w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white shadow-lg shadow-purple-900/20">
             <LayoutDashboard size={32} />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Zenjira</h1>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white">IGS Kanban</h1>
           <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2">Mercados & Delivery</p>
         </div>
 
@@ -119,17 +166,43 @@ export default function Login() {
 
         {step === 3 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
-            <div className="relative">
-              <KeyRound size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                type="password" value={masterKey} onChange={(e) => setMasterKey(e.target.value)} 
-                onKeyDown={(e) => e.key === 'Enter' && handleEnterApp()}
-                placeholder="Insira sua Chave Mestra" 
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-igs-primary outline-none font-bold text-slate-900 dark:text-white transition-colors"
-              />
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-black text-slate-800 dark:text-white">
+                {isFirstTime ? 'Crie sua Senha Mestra' : 'Digite sua Senha Mestra'}
+              </h2>
+              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                {isFirstTime 
+                  ? 'Essa senha criptografará seus acessos e deve ser única. Por segurança, nós não podemos recuperá-la!' 
+                  : 'Insira sua senha exclusiva para descriptografar seu cofre e acessar a plataforma.'}
+              </p>
             </div>
-            <button onClick={handleEnterApp} className="w-full bg-slate-900 dark:bg-igs-primary text-white font-black py-4 rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:bg-black dark:hover:bg-igs-accent transition-all">
-              <LogIn size={20} /> Acessar Plataforma
+
+            <div className="space-y-4">
+              <div className="relative">
+                <KeyRound size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="password" value={masterKey} onChange={(e) => setMasterKey(e.target.value)} 
+                  onKeyDown={(e) => e.key === 'Enter' && !isFirstTime && handleEnterApp()}
+                  placeholder={isFirstTime ? "Crie uma senha (mínimo 6 caracteres)" : "Sua Senha Mestra"} 
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-igs-primary outline-none font-bold text-slate-900 dark:text-white transition-colors"
+                />
+              </div>
+
+              {isFirstTime && (
+                <div className="relative">
+                  <KeyRound size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    type="password" value={confirmKey} onChange={(e) => setConfirmKey(e.target.value)} 
+                    onKeyDown={(e) => e.key === 'Enter' && handleEnterApp()}
+                    placeholder="Confirme a Senha Mestra" 
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-igs-primary outline-none font-bold text-slate-900 dark:text-white transition-colors"
+                  />
+                </div>
+              )}
+            </div>
+
+            <button onClick={handleEnterApp} disabled={loading} className="w-full bg-slate-900 dark:bg-igs-primary text-white font-black py-4 rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:bg-black dark:hover:bg-igs-accent transition-all disabled:opacity-50">
+              {loading ? 'Processando...' : <><LogIn size={20} /> Acessar Plataforma</>}
             </button>
           </div>
         )}

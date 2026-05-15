@@ -13,8 +13,6 @@ export const decryptData = (ciphertext, secretKey) => {
   try {
     const bytes = CryptoJS.AES.decrypt(ciphertext, secretKey);
     const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
-    
-    // Tenta fazer o parse para JSON, se falhar, retorna como string normal
     try {
       return JSON.parse(decryptedString);
     } catch {
@@ -24,4 +22,10 @@ export const decryptData = (ciphertext, secretKey) => {
     console.error("Erro ao descriptografar dados. Chave incorreta?");
     return null;
   }
+};
+
+// NOVO: Função para Hashing da Senha Mestra do Usuário
+export const hashPassword = (password) => {
+  if (!password) return null;
+  return CryptoJS.SHA256(password).toString();
 };

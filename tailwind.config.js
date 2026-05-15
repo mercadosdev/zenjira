@@ -7,10 +7,13 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        // Define a Google Sans Flex como fonte padrão do sistema
+        sans: ['"Google Sans Flex"', 'sans-serif'],
+      },
       colors: {
         igs: {
           dark: '#020617', 
-          /* Ao invés de um HEX fixo, ele lê a variável CSS do index.css, suportando opacidade! */
           primary: 'rgb(var(--color-primary) / <alpha-value>)',
           accent: 'rgb(var(--color-accent) / <alpha-value>)',
           bg: '#ffffff', 

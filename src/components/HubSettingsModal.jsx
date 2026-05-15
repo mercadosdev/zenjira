@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc, query, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAppStore } from '../store/store';
+import { encryptData, decryptData } from '../utils/crypto'; // IMPORTANDO FUNÇÕES DE CRIPTO
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShieldAlert, Trash2, Users, KeyRound, Eye, EyeOff, CheckCircle2, Edit3, Eye as EyeIcon } from 'lucide-react';
+import { X, ShieldAlert, Trash2, Users, KeyRound, Eye, EyeOff, CheckCircle2, Edit3, Eye as EyeIcon, UserMinus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { t } from '../utils/i18n';
 
 export default function HubSettingsModal({ hubId, onClose }) {
-  const { activeHub, activeHubKey, clearActiveHub, language } = useAppStore();
+  const { activeHub, activeHubKey, clearActiveHub, language, userRole } = useAppStore();
   const navigate = useNavigate();
+  const isIgs = userRole === 'igs';
   
   const [users, setUsers] = useState([]);
   const [allowedUsers, setAllowedUsers] = useState([]);
-  const [clientEditors, setClientEditors] = useState([]); // NOVO ESTADO
+  const [clientEditors, setClientEditors] = useState([]); 
   const [showKey, setShowKey] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -64,6 +66,56 @@ export default function HubSettingsModal({ hubId, onClose }) {
     finally { setLoading(false); }
   };
 
+  // NOVA LÓGICA: Exclusão de usuário com limpeza de tarefas em cascata
+  const handleDeleteUser = async (userToDelete) => {
+    if (!window.confirm(`ATENÇÃO: Deseja EXCLUIR DEFINITIVAMENTE o usuário "${userToDelete.name}" da plataforma?\n\nEle perderá acesso ao sistema e todas as tarefas dele NESTE HUB ficarão sem responsável. Esta ação é irreversível.`)) return;
+    
+    setLoading(true);
+    try {
+      // 1. Exclui o usuário da coleção global
+      await deleteDoc(doc(db, 'users', userToDelete.id));
+
+      // 2. Remove das listas de permissão do Hub atual
+      const newAllowed = allowedUsers.filter(id => id !== userToDelete.id);
+      const newEditors = clientEditors.filter(id => id !== userToDelete.id);
+      await updateDoc(doc(db, 'hubs', hubId), {
+        allowedUsers: newAllowed,
+        clientEditors: newEditors
+      });
+      setAllowedUsers(newAllowed);
+      setClientEditors(newEditors);
+
+      // 3. Atualiza TODAS as tarefas deste Hub, removendo o responsável
+      const q = query(collection(db, `hubs/${hubId}/cards`));
+      const snapshot = await getDocs(q);
+
+      for (const cardDoc of snapshot.docs) {
+        const cardData = cardDoc.data();
+        const decrypted = decryptData(cardData.content, activeHubKey);
+
+        // Se a tarefa pertencia ao usuário excluído, remove o vínculo
+        if (decrypted && decrypted.responsavel === userToDelete.name) {
+          decrypted.responsavel = '';
+          const encryptedContent = encryptData(decrypted, activeHubKey);
+          await updateDoc(doc(db, `hubs/${hubId}/cards`, cardDoc.id), {
+            content: encryptedContent,
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+
+      // 4. Atualiza a tela
+      setUsers(users.filter(u => u.id !== userToDelete.id));
+      alert("Usuário excluído com sucesso. Tarefas atualizadas.");
+
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao excluir usuário.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteHub = async () => {
     if (!window.confirm(`Tem certeza absoluta que deseja EXCLUIR permanentemente o hub "${activeHub.name}"?`)) return;
     setLoading(true);
@@ -83,7 +135,7 @@ export default function HubSettingsModal({ hubId, onClose }) {
       >
         <motion.div 
           initial={{ y: 50, scale: 0.95 }} animate={{ y: 0, scale: 1 }} exit={{ y: 20, scale: 0.95 }}
-          className="bg-white dark:bg-igs-panel p-8 rounded-3xl w-full max-w-3xl shadow-2xl relative border border-slate-100 dark:border-slate-800 flex flex-col max-h-[90vh]"
+          className="bg-white dark:bg-igs-panel p-8 rounded-3xl w-full max-w-4xl shadow-2xl relative border border-slate-100 dark:border-slate-800 flex flex-col max-h-[90vh]"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
@@ -128,7 +180,14 @@ export default function HubSettingsModal({ hubId, onClose }) {
                     return (
                       <div key={u.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800/50 hover:bg-white dark:hover:bg-slate-800 transition-colors gap-4">
                         <div>
-                          <p className="font-bold text-sm text-slate-800 dark:text-slate-200">{u.name}</p>
+                          <p className="font-bold text-sm text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                            {u.name}
+                            {isIgs && (
+                              <button onClick={() => handleDeleteUser(u)} title="Excluir Usuário" className="text-slate-300 hover:text-red-500 transition-colors">
+                                <UserMinus size={14} />
+                              </button>
+                            )}
+                          </p>
                           <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mt-1">
                             <span className={u.role === 'igs' ? 'text-blue-500' : 'text-emerald-500'}>{u.role}</span> • {u.email}
                           </p>
