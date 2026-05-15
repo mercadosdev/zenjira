@@ -1,14 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Calendar as CalendarIcon, Activity, Bug, BugOff, Sparkles, HelpCircle, Repeat2, Binary } from 'lucide-react';
+import { ChevronDown, Calendar as CalendarIcon, Activity, Bug, BugOff, Sparkles, HelpCircle, Repeat2, Binary, Eye, EyeOff } from 'lucide-react';
 import { useAppStore } from '../store/store';
 import { t } from '../utils/i18n';
 import { STATUS_COLORS, CATEGORIAS } from '../utils/constants';
 
-// ICON MAP PARA CATEGORIAS
-const IconMap = {
-  Bug, BugOff, Sparkles, HelpCircle, Repeat2, Binary
-};
+const IconMap = { Bug, BugOff, Sparkles, HelpCircle, Repeat2, Binary };
 
 export function CategoryBadge({ categoryLabel, className = '' }) {
   const cat = CATEGORIAS.find(c => c.label === categoryLabel) || CATEGORIAS[0];
@@ -141,11 +138,16 @@ export function CustomDatePicker({ value, onChange }) {
 
 export function GlobalDialogs() {
   const { dialog, closeDialog, language } = useAppStore();
-  const isPrompt = dialog?.type === 'prompt';
+  
+  // ADICIONADO: Lógica de exibição e tipo do Input
+  const isPrompt = dialog?.type === 'prompt' || dialog?.type === 'password';
+  const isPassword = dialog?.type === 'password';
+  
   const [inputValue, setInputValue] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
 
   useEffect(() => {
-    if (dialog?.type === 'prompt') {
+    if (isPrompt) {
       setInputValue(dialog.defaultValue || '');
     }
   }, [dialog]);
@@ -169,10 +171,24 @@ export function GlobalDialogs() {
         {dialog.message && <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">{dialog.message}</p>}
         
         {isPrompt && (
-          <input 
-            autoFocus type="text" value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleConfirm()}
-            className="w-full p-3 mb-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-igs-primary outline-none dark:text-white"
-          />
+          <div className="relative">
+            <input 
+              autoFocus 
+              type={isPassword && !showPwd ? 'password' : 'text'} 
+              value={inputValue} 
+              onChange={e => setInputValue(e.target.value)} 
+              onKeyDown={e => e.key === 'Enter' && handleConfirm()}
+              className="w-full p-3 pr-10 mb-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-igs-primary outline-none dark:text-white"
+            />
+            {isPassword && (
+              <button 
+                onClick={() => setShowPwd(!showPwd)} 
+                className="absolute right-3 top-[22px] -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            )}
+          </div>
         )}
 
         <div className="flex justify-end gap-3 mt-2">
@@ -208,12 +224,7 @@ export function Avatar({ name, size = 'md', className = '' }) {
     return gradients[Math.abs(hash) % gradients.length];
   };
 
-  const sizes = {
-    sm: 'w-6 h-6 text-[10px]',
-    md: 'w-8 h-8 text-xs',
-    lg: 'w-12 h-12 text-sm',
-    xl: 'w-24 h-24 text-3xl'
-  };
+  const sizes = { sm: 'w-6 h-6 text-[10px]', md: 'w-8 h-8 text-xs', lg: 'w-12 h-12 text-sm', xl: 'w-24 h-24 text-3xl' };
 
   return (
     <div className={`flex items-center justify-center rounded-full text-white font-semibold bg-gradient-to-br ${getGradient(name)} ${sizes[size]} ${className} shadow-sm shrink-0`}>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'; // ALTERADO AQUI
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './config/firebase';
@@ -11,9 +11,8 @@ import HubView from './pages/HubView';
 
 function App() {
   const [initializing, setInitializing] = useState(true);
-  const { user, isAuthorized, setUser, setAuthorized, theme } = useAppStore(); // <-- Puxamos o theme
+  const { user, isAuthorized, setUser, setAuthorized, theme } = useAppStore();
 
-  // CORREÇÃO CRUCIAL DO TEMA: Garante que a classe 'dark' seja aplicada ao carregar a página
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
@@ -45,8 +44,9 @@ function App() {
     );
   }
 
+  // USO DO HASH ROUTER
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Navigate to={isAuthorized ? "/hubs" : "/login"} />} />
         <Route path="/login" element={!isAuthorized ? <Login /> : <Navigate to="/hubs" />} />
@@ -54,7 +54,7 @@ function App() {
         <Route path="/hubs/:hubId" element={user && isAuthorized ? <HubView /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

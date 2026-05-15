@@ -4,6 +4,7 @@ import { collection, addDoc, doc, updateDoc, setDoc, deleteDoc, query, orderBy, 
 import { db } from '../config/firebase';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
+import { removeKeyFromVault } from '../utils/keyVault'; // IMPORTAMOS A FUNÇÃO PARA QUEBRAR O LOOP
 import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, User, Menu, X } from 'lucide-react';
 import { t } from '../utils/i18n';
 
@@ -60,7 +61,7 @@ export default function HubView() {
         const editors = data.clientEditors || [];
         
         if (allowed.length > 0 && !allowed.includes(user?.uid)) {
-          alert("Você não tem permissão para acessar este Hub.");
+          alert("Você não tem permissão para aceder a este Hub.");
           clearActiveHub();
           navigate('/hubs');
         }
@@ -70,19 +71,20 @@ export default function HubView() {
     verifyAccess();
   }, [activeHub, activeHubKey, hubId, userHubs, setActiveHub, navigate, user, clearActiveHub, isIgs]);
 
-  // NOVO: VALIDAÇÃO DE SENHA DO HUB INCORRETA
+  // CORREÇÃO DO LOOP INFINITO
   useEffect(() => {
-    if (rawCards.length > 0 && activeHubKey) {
+    if (rawCards.length > 0 && activeHubKey && user && hubId) {
        const testCard = rawCards[0];
        const testDecrypt = decryptData(testCard.content, activeHubKey);
-       // Se o parse falhar ou não encontrar os campos básicos, a chave está errada!
+       
        if (!testDecrypt || typeof testDecrypt !== 'object' || (!testDecrypt.nome && !testDecrypt.responsavel)) {
-          alert("⚠️ Chave de Acesso do Hub incorreta! O cofre não pôde ser descriptografado.");
+          alert("⚠️ Chave de Acesso do Hub incorreta! O cofre não pôde ser desencriptado.");
+          removeKeyFromVault(user.uid, hubId); // ELIMINA A CHAVE CORROMPIDA DO STORAGE
           clearActiveHub();
           navigate('/hubs');
        }
     }
-  }, [rawCards, activeHubKey, clearActiveHub, navigate]);
+  }, [rawCards, activeHubKey, clearActiveHub, navigate, user, hubId]);
 
   useEffect(() => {
     if (activeHub && activeHubKey && user) {
@@ -181,7 +183,7 @@ export default function HubView() {
     openDialog({
       type: 'confirm',
       title: t(language, 'deleteBoard'),
-      message: `Tem certeza que deseja excluir o quadro "${quadroName}"? Os cards nele ficarão sem quadro.`,
+      message: `Tem a certeza que deseja excluir o quadro "${quadroName}"? As tarefas dentro dele ficarão sem quadro.`,
       onConfirm: async (confirmed) => {
         if (confirmed) {
           try {
@@ -201,9 +203,9 @@ export default function HubView() {
     const success = setActiveHub(hub);
     if (!success) {
       openDialog({
-        type: 'prompt',
+        type: 'password', // AGORA É DO TIPO PASSWORD
         title: 'Chave E2EE',
-        message: `Insira a chave para acessar "${hub.name}":`,
+        message: `Insira a chave para aceder a "${hub.name}":`,
         onConfirm: (key) => {
           if (key) {
             setActiveHub(hub, key);
@@ -253,7 +255,7 @@ export default function HubView() {
         <div className="p-6 pb-2 flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <FolderKanban className="text-igs-primary" size={24} /> IGS Hub
+              <FolderKanban className="text-igs-primary" size={24} /> Zenjira
             </h2>
             <p className="text-xs font-medium text-slate-500 mt-4 uppercase tracking-widest mb-2">{t(language, 'myHubs')}</p>
           </div>
@@ -318,7 +320,7 @@ export default function HubView() {
               <span className="text-[9px] lg:text-xs font-medium uppercase tracking-wider mt-1 flex gap-1">
                 <span className="text-slate-400 hidden sm:inline">Acesso: </span>
                 <span className={isIgs ? 'text-igs-primary font-bold' : (isClientEditor ? 'text-blue-500 font-bold' : 'text-emerald-500 font-bold')}>
-                  {isIgs ? 'Equipe IGS' : (isClientEditor ? t(language, 'editor') : t(language, 'viewer'))}
+                  {isIgs ? 'Staff' : (isClientEditor ? t(language, 'editor') : t(language, 'viewer'))}
                 </span>
               </span>
             </div>
@@ -349,7 +351,7 @@ export default function HubView() {
                 </button>
               )}
               {isIgs && (
-                <button onClick={() => setIsTeamModalOpen(true)} className="flex items-center gap-1.5 px-2 lg:px-3 py-1.5 bg-white dark:bg-slate-700 text-igs-primary dark:text-white rounded-lg text-xs font-bold shadow-sm transition-colors hover:text-blue-500" title="Status da Equipe">
+                <button onClick={() => setIsTeamModalOpen(true)} className="flex items-center gap-1.5 px-2 lg:px-3 py-1.5 bg-white dark:bg-slate-700 text-igs-primary dark:text-white rounded-lg text-xs font-bold shadow-sm transition-colors hover:text-blue-500" title="Status da Equipa">
                   <Users size={14} />
                 </button>
               )}

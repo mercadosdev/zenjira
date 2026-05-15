@@ -16,7 +16,7 @@ export default function Hubs() {
   
   const [loading, setLoading] = useState(false);
   
-  const { user, userRole, setActiveHub, setUserHubs, theme, toggleTheme, language, toggleLanguage, setIgsUsers } = useAppStore();
+  const { user, userRole, setActiveHub, setUserHubs, theme, toggleTheme, language, toggleLanguage, setIgsUsers, openDialog } = useAppStore();
   const navigate = useNavigate();
   const isIgs = userRole === 'igs';
 
@@ -28,11 +28,9 @@ export default function Hubs() {
   }, [user, isIgs]);
 
   const fetchHubs = async () => {
-    // SEGURANÇA: Só busca hubs onde o usuário está expressamente autorizado
     const q = query(collection(db, 'hubs'), where('allowedUsers', 'array-contains', user.uid));
     const snapshot = await getDocs(q);
     const hubsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // Ordena localmente já que o where e orderBy no Firebase exigem index composto
     hubsData.sort((a, b) => b.createdAt - a.createdAt);
     setHubs(hubsData);
     setUserHubs(hubsData);
@@ -53,8 +51,8 @@ export default function Hubs() {
         createdBy: user.uid,
         createdAt: new Date(),
         hasChanges: false,
-        allowedUsers: [user.uid], // O criador é automaticamente autorizado
-        clientEditors: [] // Lista vazia de clientes que podem editar
+        allowedUsers: [user.uid],
+        clientEditors: [] 
       });
       alert(`Hub criado! ID: ${docRef.id}`);
       setNewHubName('');
@@ -77,7 +75,6 @@ export default function Hubs() {
       if (hubDoc.exists()) {
         const hubData = { id: hubDoc.id, ...hubDoc.data() };
         
-        // Se a pessoa acessou via ID e Senha, ela "entra" pro Hub oficialmente
         const allowed = hubData.allowedUsers || [];
         if (!allowed.includes(user.uid)) {
           await updateDoc(hubRef, { allowedUsers: [...allowed, user.uid] });
@@ -98,11 +95,18 @@ export default function Hubs() {
   const handleEnterHub = (hub) => {
     const success = setActiveHub(hub);
     if (!success) {
-      const key = prompt(`🔒 E2EE: Insira a chave para descriptografar "${hub.name}":`);
-      if (key) {
-        setActiveHub(hub, key);
-        navigate(`/hubs/${hub.id}`);
-      }
+      // UTILIZA O MODAL PERSONALIZADO DO TIPO "PASSWORD" COM O OLHINHO
+      openDialog({
+        type: 'password',
+        title: 'Chave E2EE',
+        message: `Insira a chave para desencriptar "${hub.name}":`,
+        onConfirm: (key) => {
+          if (key) {
+            setActiveHub(hub, key);
+            navigate(`/hubs/${hub.id}`);
+          }
+        }
+      });
     } else {
       navigate(`/hubs/${hub.id}`);
     }
