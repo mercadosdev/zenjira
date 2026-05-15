@@ -4,7 +4,7 @@ import { collection, addDoc, doc, updateDoc, setDoc, deleteDoc, query, orderBy, 
 import { db } from '../config/firebase';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
-import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, User, Menu } from 'lucide-react';
+import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, User, Menu, X } from 'lucide-react';
 import { t } from '../utils/i18n';
 
 import CardModal from '../components/CardModal';
