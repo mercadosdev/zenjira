@@ -8,8 +8,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Define a Google Sans Flex como fonte padrão do sistema
-        sans: ['"Google Sans Flex"', 'sans-serif'],
+        // Define a Roboto como fonte padrão
+        sans: ['"Roboto"', 'sans-serif'],
       },
       colors: {
         igs: {

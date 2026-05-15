@@ -1,16 +1,33 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Calendar as CalendarIcon, Activity } from 'lucide-react';
+import { ChevronDown, Calendar as CalendarIcon, Activity, Bug, BugOff, Sparkles, HelpCircle, Repeat2, Binary } from 'lucide-react';
 import { useAppStore } from '../store/store';
 import { t } from '../utils/i18n';
-import { STATUS_COLORS } from '../utils/constants';
+import { STATUS_COLORS, CATEGORIAS } from '../utils/constants';
+
+// ICON MAP PARA CATEGORIAS
+const IconMap = {
+  Bug, BugOff, Sparkles, HelpCircle, Repeat2, Binary
+};
+
+export function CategoryBadge({ categoryLabel, className = '' }) {
+  const cat = CATEGORIAS.find(c => c.label === categoryLabel) || CATEGORIAS[0];
+  const IconComponent = IconMap[cat.icon] || Binary;
+  
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium tracking-wide ${cat.color} ${className}`} title={cat.label}>
+      <IconComponent size={12} />
+      {cat.label}
+    </span>
+  );
+}
 
 export function StatusBadge({ status, className = '' }) {
   const colorClass = STATUS_COLORS[status] || STATUS_COLORS["Na fila"];
   const isAnalyzing = status === "Em Análise";
   
   return (
-    <span className={`inline-flex items-center justify-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest ${colorClass} ${className}`}>
+    <span className={`inline-flex items-center justify-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-semibold uppercase tracking-wider ${colorClass} ${className}`}>
       {isAnalyzing && <Activity size={12} className="animate-pulse" />}
       {status}
     </span>
@@ -37,7 +54,9 @@ export function CustomSelect({ value, onChange, options, placeholder = "Selecion
         className="w-full flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-igs-primary outline-none text-sm text-slate-800 dark:text-slate-200 transition-colors"
       >
         <span className="truncate flex items-center gap-2">
-          {colorMap && value ? <StatusBadge status={value} /> : (isStringLabel ? selectedLabel : selectedLabel.label)}
+          {colorMap === 'status' && value ? <StatusBadge status={value} /> : 
+           colorMap === 'category' && value ? <CategoryBadge categoryLabel={value} /> : 
+           (isStringLabel ? selectedLabel : selectedLabel.label)}
         </span>
         <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -54,9 +73,10 @@ export function CustomSelect({ value, onChange, options, placeholder = "Selecion
               return (
                 <div 
                   key={idx} onClick={() => { onChange(val); setIsOpen(false); }}
-                  className={`p-2 text-sm rounded-lg cursor-pointer transition-colors flex items-center ${value === val ? 'bg-igs-primary/10 text-igs-primary font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                  className={`p-2 text-sm rounded-lg cursor-pointer transition-colors flex items-center ${value === val ? 'bg-igs-primary/10 text-igs-primary font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                 >
-                  {colorMap ? <StatusBadge status={val} /> : label}
+                  {colorMap === 'status' ? <StatusBadge status={val} /> : 
+                   colorMap === 'category' ? <CategoryBadge categoryLabel={val} /> : label}
                 </div>
               );
             })}
@@ -106,10 +126,10 @@ export function CustomDatePicker({ value, onChange }) {
               className="w-full p-2 mb-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
             />
             <div className="flex justify-between gap-2">
-              <button type="button" onClick={() => { onChange(''); setIsOpen(false); }} className="text-xs text-red-500 font-bold px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">Limpar</button>
+              <button type="button" onClick={() => { onChange(''); setIsOpen(false); }} className="text-xs text-red-500 font-semibold px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">Limpar</button>
               <div className="flex gap-2">
-                <button type="button" onClick={() => setIsOpen(false)} className="text-xs text-slate-500 font-bold px-2 py-1">Cancelar</button>
-                <button type="button" onClick={handleConfirm} className="text-xs text-white bg-igs-primary hover:bg-igs-accent font-bold px-3 py-1 rounded">OK</button>
+                <button type="button" onClick={() => setIsOpen(false)} className="text-xs text-slate-500 font-semibold px-2 py-1">Cancelar</button>
+                <button type="button" onClick={handleConfirm} className="text-xs text-white bg-igs-primary hover:bg-igs-accent font-semibold px-3 py-1 rounded">OK</button>
               </div>
             </div>
           </motion.div>
@@ -145,7 +165,7 @@ export function GlobalDialogs() {
         initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
         className="bg-white dark:bg-igs-panel w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-100 dark:border-slate-800"
       >
-        <h3 className="text-lg font-black text-slate-800 dark:text-white mb-2">{dialog.title}</h3>
+        <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-2">{dialog.title}</h3>
         {dialog.message && <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">{dialog.message}</p>}
         
         {isPrompt && (
@@ -156,15 +176,14 @@ export function GlobalDialogs() {
         )}
 
         <div className="flex justify-end gap-3 mt-2">
-          <button onClick={closeDialog} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">{t(language, 'cancel')}</button>
-          <button onClick={handleConfirm} className="px-5 py-2 font-black text-white bg-igs-primary hover:bg-igs-accent rounded-xl shadow-lg transition-colors">Confirmar</button>
+          <button onClick={closeDialog} className="px-4 py-2 font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">{t(language, 'cancel')}</button>
+          <button onClick={handleConfirm} className="px-5 py-2 font-semibold text-white bg-igs-primary hover:bg-igs-accent rounded-xl shadow-lg transition-colors">Confirmar</button>
         </div>
       </motion.div>
     </div>
   );
 }
 
-// NOVO: COMPONENTE AVATAR (Gera iniciais e gradiente baseado no nome)
 export function Avatar({ name, size = 'md', className = '' }) {
   const getInitials = (n) => {
     if (!n) return 'U';
@@ -197,7 +216,7 @@ export function Avatar({ name, size = 'md', className = '' }) {
   };
 
   return (
-    <div className={`flex items-center justify-center rounded-full text-white font-black bg-gradient-to-br ${getGradient(name)} ${sizes[size]} ${className} shadow-sm shrink-0`}>
+    <div className={`flex items-center justify-center rounded-full text-white font-semibold bg-gradient-to-br ${getGradient(name)} ${sizes[size]} ${className} shadow-sm shrink-0`}>
       {getInitials(name)}
     </div>
   );

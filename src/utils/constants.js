@@ -13,6 +13,16 @@ export const STATUS_OPTIONS = Object.keys(STATUS_COLORS);
 export const COMPLEXIDADE_OPTIONS = ["Baixa", "Média", "Alta"];
 export const MER_PRIORITIES = ["Highest", "High", "Normal"];
 
+// NOVAS CATEGORIAS
+export const CATEGORIAS = [
+  { label: "Default", icon: "Binary", color: "text-slate-500 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700" },
+  { label: "Bug", icon: "Bug", color: "text-red-600 bg-red-50 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50" },
+  { label: "Bug Impeditivo", icon: "BugOff", color: "text-rose-700 bg-rose-50 border-rose-300 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-900/60" },
+  { label: "Recurso novo", icon: "Sparkles", color: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50" },
+  { label: "Dúvida", icon: "HelpCircle", color: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/50" },
+  { label: "Reentrega", icon: "Repeat2", color: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-900/50" }
+];
+
 export const BOARD_COLORS = [
   { label: "Cinza", value: "bg-slate-100 dark:bg-slate-800/80 border-t-slate-400 dark:border-t-slate-500" },
   { label: "Roxo", value: "bg-purple-50 dark:bg-purple-900/30 border-t-purple-400 dark:border-t-purple-500" },

@@ -8,8 +8,8 @@ import { encryptData } from '../utils/crypto';
 import { useParams } from 'react-router-dom';
 import { logNotification } from './NotificationBell';
 
-import { CustomSelect, CustomDatePicker, StatusBadge } from './CustomUI'; // IMPORTANDO O BADGE
-import { STATUS_OPTIONS, COMPLEXIDADE_OPTIONS, MER_PRIORITIES } from '../utils/constants';
+import { CustomSelect, CustomDatePicker, StatusBadge, CategoryBadge } from './CustomUI';
+import { STATUS_OPTIONS, COMPLEXIDADE_OPTIONS, MER_PRIORITIES, CATEGORIAS } from '../utils/constants';
 
 export default function SpreadsheetView({ cards, quadros, isHistory = false, onViewCard, isClientEditor }) {
   const { hubId } = useParams();
@@ -87,13 +87,17 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
 
     if (isEditing) {
       if (inputType === 'select') {
+        let cMap = null;
+        if (field === 'status') cMap = 'status';
+        if (field === 'categoria') cMap = 'category';
+
         return (
           <div className="min-w-[160px]">
             <CustomSelect 
               value={editState.value} 
               options={options} 
               onChange={(val) => handleSaveInline(card, val)} 
-              colorMap={field === 'status'} // MÁGICA: Se for status, ativa as cores no dropdown!
+              colorMap={cMap} 
             />
           </div>
         );
@@ -119,7 +123,6 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
       );
     }
 
-    // FORMATAÇÃO DO VALOR EXIBIDO
     let finalDisplayValue = displayValue || '-';
     if (inputType === 'date' && displayValue) {
       finalDisplayValue = new Date(displayValue + 'T12:00:00').toLocaleDateString();
@@ -131,7 +134,8 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
         className={`w-full min-h-[24px] flex items-center ${canEditInline ? 'cursor-text border border-transparent hover:border-slate-300 dark:hover:border-slate-600 rounded px-1 -mx-1 transition-colors' : ''} ${!displayValue || displayValue === '-' ? 'text-slate-400 italic' : ''}`}
         title={canEditInline ? "Clique para editar" : ""}
       >
-        {field === 'status' ? <StatusBadge status={displayValue} /> : finalDisplayValue}
+        {field === 'status' ? <StatusBadge status={displayValue} /> : 
+         field === 'categoria' && displayValue && displayValue !== '-' ? <CategoryBadge categoryLabel={displayValue} /> : finalDisplayValue}
       </div>
     );
   };
@@ -144,7 +148,7 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
     );
   }
 
-  const thClass = "p-4 text-left font-black text-xs uppercase tracking-widest text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap";
+  const thClass = "p-4 text-left font-bold text-xs uppercase tracking-widest text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap";
   const tdClass = "p-3 text-sm text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/50 align-middle";
 
   return (
@@ -155,6 +159,7 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
             <th className={`${thClass} w-10 text-center`}>Ver</th>
             <th onClick={() => requestSort('nome')} className={`${thClass} min-w-[200px]`}>Tarefa <SortIcon columnKey="nome" /></th>
             <th onClick={() => requestSort('status')} className={`${thClass} min-w-[150px]`}>Status <SortIcon columnKey="status" /></th>
+            <th onClick={() => requestSort('categoria')} className={`${thClass} min-w-[150px]`}>Categoria <SortIcon columnKey="categoria" /></th>
             {!isHistory && <th onClick={() => requestSort('quadroId')} className={`${thClass} min-w-[150px]`}>Quadro <SortIcon columnKey="quadroId" /></th>}
             <th onClick={() => requestSort('responsavel')} className={`${thClass} min-w-[150px]`}>Responsável <SortIcon columnKey="responsavel" /></th>
             <th onClick={() => requestSort('zendesk')} className={thClass}>Zendesk <SortIcon columnKey="zendesk" /></th>
@@ -175,16 +180,18 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
               <motion.tr 
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: idx * 0.01 }}
                 key={card.id} 
-                className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                // EFEITO ZEBRA ADICIONADO AQUI: Cor de fundo varia entre par e ímpar
+                className={`transition-colors group hover:bg-slate-100 dark:hover:bg-slate-700/50 ${idx % 2 === 0 ? 'bg-white dark:bg-transparent' : 'bg-slate-50 dark:bg-slate-800/30'}`}
               >
                 <td className="p-3 text-center border-b border-slate-100 dark:border-slate-800/50">
-                  <button onClick={() => onViewCard && onViewCard(card)} className="text-slate-400 hover:text-igs-primary transition-colors font-bold text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                  <button onClick={() => onViewCard && onViewCard(card)} className="text-slate-400 hover:text-igs-primary transition-colors font-semibold text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
                     Abrir
                   </button>
                 </td>
                 
-                <td className={`${tdClass} font-bold`}>{renderCell(card, 'nome', card.data?.nome)}</td>
+                <td className={`${tdClass} font-semibold`}>{renderCell(card, 'nome', card.data?.nome)}</td>
                 <td className={tdClass}>{renderCell(card, 'status', card.status, 'select', STATUS_OPTIONS)}</td>
+                <td className={tdClass}>{renderCell(card, 'categoria', card.data?.categoria || 'Default', 'select', CATEGORIAS.map(c => ({value: c.label, label: c.label})))}</td>
                 {!isHistory && <td className={tdClass}>{renderCell(card, 'quadroId', getQuadroName(card.quadroId), 'select', quadros.map(q => ({ value: q.id, label: q.name })))}</td>}
                 <td className={tdClass}>{renderCell(card, 'responsavel', card.data?.responsavel, 'select', igsUsers.map(u => ({ value: u.name, label: u.name })))}</td>
                 <td className={tdClass}>{renderCell(card, 'zendesk', card.data?.zendesk)}</td>

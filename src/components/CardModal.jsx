@@ -10,8 +10,8 @@ import { X, FileText, UserCircle, Tag, Clock, AlertTriangle, Settings, Box, Layo
 import { t } from '../utils/i18n';
 
 // Custom UI
-import { CustomSelect, CustomDatePicker, StatusBadge } from './CustomUI';
-import { STATUS_OPTIONS, COMPLEXIDADE_OPTIONS, MER_PRIORITIES } from '../utils/constants';
+import { CustomSelect, CustomDatePicker, StatusBadge, CategoryBadge } from './CustomUI';
+import { STATUS_OPTIONS, COMPLEXIDADE_OPTIONS, MER_PRIORITIES, CATEGORIAS } from '../utils/constants';
 
 export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwitchToEdit, isClientEditor }) {
   const { user, userRole, activeHubKey, igsUsers, language } = useAppStore();
@@ -21,6 +21,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [status, setStatus] = useState('Na fila');
+  const [categoria, setCategoria] = useState('Default'); // NOVO: ESTADO DE CATEGORIA
   const [responsavel, setResponsavel] = useState('');
   const [comentarios, setComentarios] = useState('');
   const [previsaoEntrega, setPrevisaoEntrega] = useState('');
@@ -48,6 +49,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
       setNome(data?.nome || '');
       setDescricao(data?.descricao || '');
       setStatus(card.status || 'Na fila');
+      setCategoria(data?.categoria || 'Default'); // Carrega a categoria
       setResponsavel(data?.responsavel || '');
       setComentarios(data?.comentarios || '');
       setPrevisaoEntrega(data?.previsaoEntrega || '');
@@ -91,7 +93,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     setLoading(true);
 
     const cardDataPayload = {
-      nome, descricao, responsavel, comentarios, previsaoEntrega, zendesk, subtasks,
+      nome, descricao, categoria, responsavel, comentarios, previsaoEntrega, zendesk, subtasks,
       ...(isIgs && { prioridade, jira, comentariosInternos, complexidade, troubleshooting: { tipo, versao, pkg }, delivery: { dlv, versaoGerada, pkgGerada } })
     };
 
@@ -117,7 +119,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
   const isView = mode === 'view';
   const inputClass = "w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-igs-primary outline-none text-sm text-slate-800 dark:text-slate-200 transition-colors";
-  const labelClass = "text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5 uppercase tracking-wider text-[10px]";
+  const labelClass = "text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5 uppercase tracking-wider text-[10px]";
 
   const renderLinks = (text, type) => {
     const links = parseLinks(text, type);
@@ -125,7 +127,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     return (
       <div className="flex flex-wrap gap-2 mt-1">
         {links.map((link, idx) => (
-          <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1 bg-igs-primary/10 text-igs-primary hover:bg-igs-primary/20 rounded-lg text-xs font-bold transition-colors border border-igs-primary/20">
+          <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1 bg-igs-primary/10 text-igs-primary hover:bg-igs-primary/20 rounded-lg text-xs font-semibold transition-colors border border-igs-primary/20">
             {link.label} <ExternalLink size={10} />
           </a>
         ))}
@@ -150,12 +152,16 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
         >
           <div className="flex justify-between items-start mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
             <div className="pr-4">
-              <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+              <h2 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                 <LayoutList className="text-igs-primary" />
                 {isView ? nome : (mode === 'edit' ? t(language, 'editTask') : t(language, 'newTask'))}
               </h2>
-              {/* O STATUS NO MODO VIEW AGORA USA O NOSSO BADGE BONITO */}
-              {isView && <div className="mt-3"><StatusBadge status={status} /></div>}
+              {isView && (
+                <div className="mt-3 flex gap-2 items-center flex-wrap">
+                  <StatusBadge status={status} />
+                  {categoria && categoria !== 'Default' && <CategoryBadge categoryLabel={categoria} />}
+                </div>
+              )}
             </div>
             
             <div className="flex items-center gap-2">
@@ -168,7 +174,6 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
             </div>
           </div>
           
-          {/* PADDING CORRIGIDO AQUI: px-2 para a esquerda não cortar */}
           <div className="space-y-6 max-h-[70vh] overflow-y-auto px-2 -mx-2 custom-scrollbar">
             
             {/* -------------------- MODO VIEW -------------------- */}
@@ -185,8 +190,8 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                 {(subtasks.length > 0) && (
                   <div className="bg-slate-50 dark:bg-slate-900/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/50">
                     <div className="flex justify-between items-center mb-3">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1"><CheckSquare size={14}/> {t(language, 'subtasks')}</label>
-                      <span className="text-[10px] font-black text-igs-primary">{progress}% Concluído</span>
+                      <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1"><CheckSquare size={14}/> {t(language, 'subtasks')}</label>
+                      <span className="text-[10px] font-bold text-igs-primary">{progress}% Concluído</span>
                     </div>
                     <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mb-4 overflow-hidden">
                       <div className={`h-full rounded-full transition-all duration-500 ${progress === 100 ? 'bg-emerald-500' : 'bg-igs-primary'}`} style={{ width: `${progress}%` }}></div>
@@ -205,11 +210,11 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                 <div className="grid grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50">
                   <div>
                     <label className={labelClass}><UserCircle size={14}/> {t(language, 'responsible')}</label>
-                    <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{responsavel || '-'}</div>
+                    <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{responsavel || '-'}</div>
                   </div>
                   <div>
                     <label className={labelClass}><Clock size={14}/> {t(language, 'deliveryDate')}</label>
-                    <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{previsaoEntrega ? new Date(previsaoEntrega + 'T12:00:00').toLocaleDateString() : '-'}</div>
+                    <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{previsaoEntrega ? new Date(previsaoEntrega + 'T12:00:00').toLocaleDateString() : '-'}</div>
                   </div>
                   <div className="col-span-2">
                     <label className={labelClass}>Zendesk (Tickets)</label>
@@ -226,17 +231,17 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
                 {isIgs && (
                   <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-700 pt-6 mt-6">
-                    <h3 className="text-sm font-black text-slate-800 dark:text-white mb-4 flex items-center gap-2 uppercase tracking-widest"><Settings size={16} className="text-slate-400" /> {t(language, 'internalFields')}</h3>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 uppercase tracking-widest"><Settings size={16} className="text-slate-400" /> {t(language, 'internalFields')}</h3>
                     
                     <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div><label className={labelClass}>{t(language, 'complexity')}</label><div className="text-sm font-bold">{complexidade}</div></div>
-                      <div><label className={labelClass}>{t(language, 'priority')}</label><div className="text-sm font-bold">{prioridade || '-'}</div></div>
+                      <div><label className={labelClass}>{t(language, 'complexity')}</label><div className="text-sm font-semibold">{complexidade}</div></div>
+                      <div><label className={labelClass}>{t(language, 'priority')}</label><div className="text-sm font-semibold">{prioridade || '-'}</div></div>
                       <div className="col-span-2"><label className={labelClass}>Jira (Issues)</label>{renderLinks(jira, 'jira')}</div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/30">
-                        <h4 className="font-black text-[10px] uppercase text-amber-800 dark:text-amber-500 mb-2 flex items-center gap-1"><AlertTriangle size={12} /> Troubleshooting</h4>
+                        <h4 className="font-bold text-[10px] uppercase text-amber-800 dark:text-amber-500 mb-2 flex items-center gap-1"><AlertTriangle size={12} /> Troubleshooting</h4>
                         <div className="space-y-2 text-sm text-amber-900 dark:text-amber-400">
                           <p><strong>{t(language, 'type')}:</strong> {tipo}</p>
                           <p><strong>{t(language, 'version')}:</strong> {versao || '-'}</p>
@@ -244,7 +249,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                         </div>
                       </div>
                       <div className="bg-igs-primary/5 p-4 rounded-xl border border-igs-primary/20">
-                        <h4 className="font-black text-[10px] uppercase text-igs-primary mb-2 flex items-center gap-1"><Box size={12} /> Delivery</h4>
+                        <h4 className="font-bold text-[10px] uppercase text-igs-primary mb-2 flex items-center gap-1"><Box size={12} /> Delivery</h4>
                         <div className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
                           <p><strong>DLV:</strong> {dlv || '-'}</p>
                           <p><strong>Ver. Gerada:</strong> {versaoGerada || '-'}</p>
@@ -264,15 +269,15 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   <input value={nome} onChange={e => setNome(e.target.value)} className={inputClass} placeholder="Nome da Tarefa" />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[60] relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[70] relative">
                   <div>
                     <label className={labelClass}><Tag size={14} className="text-slate-400"/> {t(language, 'status')}</label>
-                    {/* CUSTOM SELECT COM CORES (colorMap={true}) */}
-                    <CustomSelect value={status} onChange={setStatus} options={STATUS_OPTIONS} colorMap={true} />
+                    <CustomSelect value={status} onChange={setStatus} options={STATUS_OPTIONS} colorMap="status" />
                   </div>
                   <div>
-                    <label className={labelClass}><UserCircle size={14} className="text-slate-400"/> {t(language, 'responsible')}</label>
-                    <CustomSelect value={responsavel} onChange={setResponsavel} options={igsUsers.map(u => u.name)} placeholder="Selecione..." />
+                    <label className={labelClass}><Box size={14} className="text-slate-400"/> Categoria</label>
+                    {/* SELETOR DE CATEGORIA AQUI */}
+                    <CustomSelect value={categoria} onChange={setCategoria} options={CATEGORIAS.map(c => ({value: c.label, label: c.label}))} colorMap="category" />
                   </div>
                 </div>
 
@@ -308,7 +313,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[50] relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[60] relative">
                    <div>
                     <label className={labelClass}>Zendesk (Separados por vírgula)</label>
                     <input value={zendesk} onChange={e => setZendesk(e.target.value)} placeholder="Ex: 12345, 67890" className={inputClass} />
@@ -321,11 +326,15 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
                 {isIgs && (
                   <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-700 pt-6 mt-6">
-                    <h3 className="text-sm font-black text-slate-800 dark:text-white mb-4 flex items-center gap-2 uppercase tracking-widest">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 uppercase tracking-widest">
                       <Settings size={16} className="text-slate-400" /> {t(language, 'internalFields')}
                     </h3>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5 z-[40] relative">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5 z-[50] relative">
+                      <div>
+                        <label className={labelClass}><UserCircle size={14} className="text-slate-400"/> {t(language, 'responsible')}</label>
+                        <CustomSelect value={responsavel} onChange={setResponsavel} options={igsUsers.map(u => u.name)} placeholder="Selecione..." />
+                      </div>
                       <div>
                         <label className={labelClass}>{t(language, 'complexity')}</label>
                         <CustomSelect value={complexidade} onChange={setComplexidade} options={COMPLEXIDADE_OPTIONS} />
@@ -342,28 +351,28 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                     </div>
 
                     <div className="bg-amber-50 dark:bg-amber-900/10 p-5 rounded-xl border border-amber-100 dark:border-amber-900/30 mb-5">
-                      <h4 className="font-black text-[10px] text-amber-800 dark:text-amber-500 mb-3 flex items-center gap-2 uppercase tracking-widest"><AlertTriangle size={14} /> Troubleshooting</h4>
+                      <h4 className="font-bold text-[10px] text-amber-800 dark:text-amber-500 mb-3 flex items-center gap-2 uppercase tracking-widest"><AlertTriangle size={14} /> Troubleshooting</h4>
                       <div className="grid grid-cols-3 gap-3 z-[30] relative">
-                        <div><label className="block text-[10px] font-bold text-amber-700 mb-1">{t(language, 'type')}</label><CustomSelect value={tipo} onChange={setTipo} options={['Jogo', 'Servidor']} /></div>
-                        <div><label className="block text-[10px] font-bold text-amber-700 mb-1">{t(language, 'version')}</label><input value={versao} onChange={e => setVersao(e.target.value)} className={inputClass} /></div>
-                        <div><label className="block text-[10px] font-bold text-amber-700 mb-1">PKG</label><input value={pkg} onChange={e => setPkg(e.target.value)} className={inputClass} /></div>
+                        <div><label className="block text-[10px] font-semibold text-amber-700 mb-1">{t(language, 'type')}</label><CustomSelect value={tipo} onChange={setTipo} options={['Jogo', 'Servidor']} /></div>
+                        <div><label className="block text-[10px] font-semibold text-amber-700 mb-1">{t(language, 'version')}</label><input value={versao} onChange={e => setVersao(e.target.value)} className={inputClass} /></div>
+                        <div><label className="block text-[10px] font-semibold text-amber-700 mb-1">PKG</label><input value={pkg} onChange={e => setPkg(e.target.value)} className={inputClass} /></div>
                       </div>
                     </div>
 
                     <div className="bg-igs-primary/5 p-5 rounded-xl border border-igs-primary/20 mb-5">
-                      <h4 className="font-black text-[10px] text-igs-primary mb-3 flex items-center gap-2 uppercase tracking-widest"><Box size={14} /> Delivery</h4>
+                      <h4 className="font-bold text-[10px] text-igs-primary mb-3 flex items-center gap-2 uppercase tracking-widest"><Box size={14} /> Delivery</h4>
                       <div className="grid grid-cols-3 gap-3">
-                        <div><label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">DLV</label><input value={dlv} onChange={e => setDlv(e.target.value)} className={inputClass} /></div>
-                        <div><label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">Ver. Gerada</label><input value={versaoGerada} onChange={e => setVersaoGerada(e.target.value)} className={inputClass} /></div>
-                        <div><label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">PKG Gerada</label><input value={pkgGerada} onChange={e => setPkgGerada(e.target.value)} className={inputClass} /></div>
+                        <div><label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-1">DLV</label><input value={dlv} onChange={e => setDlv(e.target.value)} className={inputClass} /></div>
+                        <div><label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Ver. Gerada</label><input value={versaoGerada} onChange={e => setVersaoGerada(e.target.value)} className={inputClass} /></div>
+                        <div><label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-1">PKG Gerada</label><input value={pkgGerada} onChange={e => setPkgGerada(e.target.value)} className={inputClass} /></div>
                       </div>
                     </div>
                   </div>
                 )}
 
                 <div className="flex justify-end gap-3 mt-8 pt-5 border-t border-slate-100 dark:border-slate-800">
-                  <button onClick={onClose} className="px-5 py-3 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">{t(language, 'cancel')}</button>
-                  <button onClick={handleSave} disabled={loading} className="px-8 py-3 bg-igs-primary hover:bg-igs-accent text-white font-black rounded-xl shadow-lg transition-colors disabled:opacity-50">
+                  <button onClick={onClose} className="px-5 py-3 text-slate-600 dark:text-slate-400 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">{t(language, 'cancel')}</button>
+                  <button onClick={handleSave} disabled={loading} className="px-8 py-3 bg-igs-primary hover:bg-igs-accent text-white font-bold rounded-xl shadow-lg transition-colors disabled:opacity-50">
                     {loading ? '...' : t(language, 'save')}
                   </button>
                 </div>

@@ -9,7 +9,7 @@ import { Plus, Edit2, Trash2, Search, X, GripVertical, Palette } from 'lucide-re
 import { motion, AnimatePresence } from 'framer-motion';
 import { BOARD_COLORS } from '../utils/constants';
 import { t } from '../utils/i18n';
-import { StatusBadge } from './CustomUI'; // IMPORTANDO O NOVO BADGE
+import { StatusBadge, CategoryBadge } from './CustomUI';
 
 export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCard, onRenameQuadro, onDeleteQuadro, isClientEditor }) {
   const { activeHubKey, userRole, user, language } = useAppStore();
@@ -82,9 +82,9 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
               >
                 <div className={`p-4 rounded-t-2xl border-b border-slate-200 dark:border-slate-800 border-t-4 shadow-sm flex flex-col gap-2 relative transition-colors ${boardTheme}`}>
                   <div className="flex justify-between items-center">
-                    <h3 className="font-black text-slate-800 dark:text-white m-0 flex items-center gap-2">
+                    <h3 className="font-bold text-slate-800 dark:text-white m-0 flex items-center gap-2">
                       {quadro.name}
-                      <span className="bg-white/50 dark:bg-black/20 text-slate-800 dark:text-slate-200 text-xs font-black px-2 py-0.5 rounded-full shadow-sm">
+                      <span className="bg-white/50 dark:bg-black/20 text-slate-800 dark:text-slate-200 text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
                         {quadroCards.length}
                       </span>
                     </h3>
@@ -98,7 +98,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                             <button onClick={() => setColorPickerOpen(colorPickerOpen === quadro.id ? null : quadro.id)} className="p-1.5 hover:text-amber-500 hover:bg-white/40 dark:hover:bg-slate-900/40 rounded-lg transition-all"><Palette size={16} /></button>
                             {colorPickerOpen === quadro.id && (
                               <div className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl shadow-2xl z-50 flex flex-col gap-1 w-32">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase text-center mb-1">{t(language, 'boardColor')}</p>
+                                <p className="text-[10px] font-semibold text-slate-400 uppercase text-center mb-1">{t(language, 'boardColor')}</p>
                                 {BOARD_COLORS.map(c => (
                                   <div 
                                     key={c.label} onClick={() => handleChangeQuadroColor(quadro.id, c.value)}
@@ -139,15 +139,13 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                       <AnimatePresence>
                         {quadroCards.map((card, index) => {
                           const cardData = card.data || decryptData(card.content, activeHubKey);
-                          
-                          // Lógica de Cores da Esquerda
                           const leftBorder = isIgs && cardData?.complexidade === 'Alta' ? 'border-red-500' : (isIgs && cardData?.complexidade === 'Média' ? 'border-amber-500' : 'border-igs-primary');
                           
-                          // Cálculo do progresso das subtarefas
                           const subtasks = cardData?.subtasks || [];
                           const completedSubtasks = subtasks.filter(s => s.completed).length;
                           const totalSubtasks = subtasks.length;
                           const progress = totalSubtasks === 0 ? 0 : Math.round((completedSubtasks / totalSubtasks) * 100);
+                          const categoria = cardData?.categoria || 'Default';
 
                           return (
                             <Draggable key={card.id} draggableId={card.id} index={index} isDragDisabled={!canEdit}>
@@ -160,7 +158,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                   style={{ ...provided.draggableProps.style }}
                                 >
                                   <div className="flex items-start justify-between gap-2 mb-2">
-                                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm break-words leading-snug">
+                                    <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm break-words leading-snug">
                                       {cardData?.nome || '⚠️ Falha ao descriptografar'}
                                     </h4>
                                     {canEdit && (
@@ -172,7 +170,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
 
                                   {totalSubtasks > 0 && (
                                     <div className="mb-3">
-                                      <div className="flex justify-between text-[9px] font-bold text-slate-400 mb-1">
+                                      <div className="flex justify-between text-[9px] font-semibold text-slate-400 mb-1">
                                         <span>Progresso</span>
                                         <span>{completedSubtasks}/{totalSubtasks}</span>
                                       </div>
@@ -182,20 +180,19 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                     </div>
                                   )}
                                   
-                                  <div className="flex justify-between items-center mt-4">
-                                    {/* AQUI ESTÁ O NOVO STATUS BADGE ANIMADO */}
+                                  <div className="flex justify-between items-center mt-3 gap-2 flex-wrap">
                                     <StatusBadge status={card.status} />
-                                    
-                                    <span className="text-xs truncate max-w-[100px] font-medium text-slate-500 dark:text-slate-400" title={cardData?.responsavel}>{cardData?.responsavel}</span>
+                                    {categoria && categoria !== 'Default' && <CategoryBadge categoryLabel={categoria} />}
                                   </div>
 
-                                  {isIgs && cardData?.jira && (
-                                    <div className="mt-3 flex gap-1 flex-wrap">
-                                      <span className="inline-block bg-igs-primary/10 text-igs-primary border border-igs-primary/20 text-[10px] font-black px-2 py-0.5 rounded truncate max-w-full">
+                                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-50 dark:border-slate-800/50">
+                                    <span className="text-xs truncate max-w-[100px] font-medium text-slate-500 dark:text-slate-400" title={cardData?.responsavel}>{cardData?.responsavel || 'Sem dono'}</span>
+                                    {isIgs && cardData?.jira && (
+                                      <span className="inline-block bg-igs-primary/10 text-igs-primary border border-igs-primary/20 text-[9px] font-semibold px-2 py-0.5 rounded truncate max-w-[80px]">
                                         Jira: {cardData.jira}
                                       </span>
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </Draggable>
@@ -207,7 +204,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                       {canEdit && (
                         <button 
                           onClick={() => onAddCard(quadro.id)}
-                          className="w-full mt-2 py-3 flex items-center justify-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-igs-primary dark:hover:text-igs-accent hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"
+                          className="w-full mt-2 py-3 flex items-center justify-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-igs-primary dark:hover:text-igs-accent hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"
                         >
                           <Plus size={18} /> {t(language, 'newTask')}
                         </button>
@@ -224,7 +221,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
           <div className="min-w-[320px] w-[320px] flex flex-col">
             <button 
               onClick={() => { onRenameQuadro(null, '', true); }}
-              className="h-14 flex items-center justify-center gap-2 bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 font-bold transition-colors"
+              className="h-14 flex items-center justify-center gap-2 bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 font-semibold transition-colors"
             >
               <Plus size={20} /> Criar Novo Quadro
             </button>

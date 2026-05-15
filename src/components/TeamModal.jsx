@@ -1,12 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Users, Activity } from 'lucide-react';
 import { useAppStore } from '../store/store';
-import { StatusBadge, Avatar } from './CustomUI'; // IMPORTANDO AVATAR E BADGE
+import { StatusBadge, Avatar } from './CustomUI'; 
 
 export default function TeamModal({ cards, onClose }) {
   const { igsUsers } = useAppStore();
 
-  const activeStatuses = ["Em Análise", "Em Desenvolvimento"];
+  // ALTERADO: Busca estritamente a tarefa atual em progresso ("Em Análise")
+  const activeStatuses = ["Em Análise"];
   
   const teamStatus = igsUsers.map(user => {
     const userCards = cards.filter(c => c.data?.responsavel === user.name && activeStatuses.includes(c.status));
@@ -37,7 +38,6 @@ export default function TeamModal({ cards, onClose }) {
               <div key={member.id} className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    {/* AVATAR DO MEMBRO DA EQUIPE */}
                     <Avatar name={member.name} size="md" />
                     <span className="font-bold text-slate-800 dark:text-slate-200">{member.name}</span>
                   </div>
