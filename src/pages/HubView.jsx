@@ -4,7 +4,7 @@ import { collection, addDoc, doc, updateDoc, setDoc, deleteDoc, query, orderBy, 
 import { db } from '../config/firebase';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
-import { removeKeyFromVault } from '../utils/keyVault'; // IMPORTAMOS A FUNÇÃO PARA QUEBRAR O LOOP
+import { removeKeyFromVault } from '../utils/keyVault'; 
 import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, User, Menu, X } from 'lucide-react';
 import { t } from '../utils/i18n';
 
@@ -71,15 +71,16 @@ export default function HubView() {
     verifyAccess();
   }, [activeHub, activeHubKey, hubId, userHubs, setActiveHub, navigate, user, clearActiveHub, isIgs]);
 
-  // CORREÇÃO DO LOOP INFINITO
+  // CORREÇÃO DO LOOP E VALIDAÇÃO SUAVIZADA
   useEffect(() => {
     if (rawCards.length > 0 && activeHubKey && user && hubId) {
        const testCard = rawCards[0];
        const testDecrypt = decryptData(testCard.content, activeHubKey);
        
-       if (!testDecrypt || typeof testDecrypt !== 'object' || (!testDecrypt.nome && !testDecrypt.responsavel)) {
+       // Se o decrypt não retornar um objeto JSON válido, a chave está errada!
+       if (!testDecrypt || typeof testDecrypt !== 'object') {
           alert("⚠️ Chave de Acesso do Hub incorreta! O cofre não pôde ser desencriptado.");
-          removeKeyFromVault(user.uid, hubId); // ELIMINA A CHAVE CORROMPIDA DO STORAGE
+          removeKeyFromVault(user.uid, hubId); 
           clearActiveHub();
           navigate('/hubs');
        }
@@ -203,7 +204,7 @@ export default function HubView() {
     const success = setActiveHub(hub);
     if (!success) {
       openDialog({
-        type: 'password', // AGORA É DO TIPO PASSWORD
+        type: 'password',
         title: 'Chave E2EE',
         message: `Insira a chave para aceder a "${hub.name}":`,
         onConfirm: (key) => {

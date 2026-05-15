@@ -3,8 +3,9 @@ import { collection, addDoc, getDocs, query, orderBy, where, doc, getDoc, update
 import { db, auth } from '../config/firebase';
 import { useAppStore } from '../store/store';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Sun, Plus, KeyRound, FolderKanban, LogOut, ShieldAlert, Hash, ArrowRight, Languages } from 'lucide-react';
+import { Moon, Sun, Plus, KeyRound, FolderKanban, LogOut, Hash, ArrowRight, Languages } from 'lucide-react';
 import { t } from '../utils/i18n';
+import { GlobalDialogs } from '../components/CustomUI'; // <-- IMPORTADO AQUI
 
 export default function Hubs() {
   const [hubs, setHubs] = useState([]);
@@ -95,7 +96,7 @@ export default function Hubs() {
   const handleEnterHub = (hub) => {
     const success = setActiveHub(hub);
     if (!success) {
-      // UTILIZA O MODAL PERSONALIZADO DO TIPO "PASSWORD" COM O OLHINHO
+      // O MODAL AGORA VAI APARECER NA TELA!
       openDialog({
         type: 'password',
         title: 'Chave E2EE',
@@ -119,6 +120,9 @@ export default function Hubs() {
 
   return (
     <div className="min-h-screen bg-igs-bg dark:bg-igs-dark text-slate-800 dark:text-slate-200 transition-colors duration-300 p-6 md:p-12">
+      {/* RENDERIZANDO O MODAL NA TELA DE HUBS */}
+      <GlobalDialogs />
+
       <header className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight flex items-center gap-3 text-igs-primary">
@@ -217,7 +221,7 @@ export default function Hubs() {
                 <div className="w-12 h-12 bg-igs-primary/10 dark:bg-slate-700 text-igs-primary rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <FolderKanban size={24} />
                 </div>
-                <h3 className="text-xl font-black text-slate-800 dark:text-white mb-1 group-hover:text-igs-primary transition-colors">{hub.name}</h3>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1 group-hover:text-igs-primary transition-colors">{hub.name}</h3>
                 <p className="text-[10px] text-slate-400 font-mono tracking-widest">{t(language, 'hubId')}: {hub.id}</p>
               </div>
             ))}
