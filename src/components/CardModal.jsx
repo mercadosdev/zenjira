@@ -6,7 +6,7 @@ import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/fi
 import { db } from '../config/firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logNotification } from './NotificationBell';
-import { X, FileText, UserCircle, Tag, Clock, AlertTriangle, Settings, Box, LayoutList, ExternalLink, Edit3, AlignLeft, CheckSquare, Plus, Trash2 } from 'lucide-react';
+import { X, FileText, UserCircle, Tag, Clock, AlertTriangle, Settings, Box, LayoutList, ExternalLink, Edit3, AlignLeft, CheckSquare, Plus, Trash2, TextCursorInput } from 'lucide-react';
 import { t } from '../utils/i18n';
 
 // Custom UI
@@ -19,9 +19,10 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
   const canEdit = isIgs || isClientEditor;
 
   const [nome, setNome] = useState('');
+  const [statusApp, setStatusApp] = useState(''); // NOVO: Status da aplicação em texto
   const [descricao, setDescricao] = useState('');
   const [status, setStatus] = useState('Na fila');
-  const [categoria, setCategoria] = useState('Default'); // NOVO: ESTADO DE CATEGORIA
+  const [categoria, setCategoria] = useState('Default'); 
   const [responsavel, setResponsavel] = useState('');
   const [comentarios, setComentarios] = useState('');
   const [previsaoEntrega, setPrevisaoEntrega] = useState('');
@@ -47,9 +48,10 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     if (card && (mode === 'edit' || mode === 'view')) {
       const data = card.data; 
       setNome(data?.nome || '');
+      setStatusApp(data?.statusApp || ''); // Carrega status extra
       setDescricao(data?.descricao || '');
       setStatus(card.status || 'Na fila');
-      setCategoria(data?.categoria || 'Default'); // Carrega a categoria
+      setCategoria(data?.categoria || 'Default'); 
       setResponsavel(data?.responsavel || '');
       setComentarios(data?.comentarios || '');
       setPrevisaoEntrega(data?.previsaoEntrega || '');
@@ -93,7 +95,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     setLoading(true);
 
     const cardDataPayload = {
-      nome, descricao, categoria, responsavel, comentarios, previsaoEntrega, zendesk, subtasks,
+      nome, statusApp, descricao, categoria, responsavel, comentarios, previsaoEntrega, zendesk, subtasks,
       ...(isIgs && { prioridade, jira, comentariosInternos, complexidade, troubleshooting: { tipo, versao, pkg }, delivery: { dlv, versaoGerada, pkgGerada } })
     };
 
@@ -179,6 +181,14 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
             {/* -------------------- MODO VIEW -------------------- */}
             {isView ? (
               <div className="space-y-6">
+
+                {statusApp && (
+                  <div>
+                    <label className={labelClass}><TextCursorInput size={14}/> Status da Aplicação</label>
+                    <p className="text-sm font-semibold text-igs-primary bg-igs-primary/5 border border-igs-primary/20 p-3 rounded-xl">{statusApp}</p>
+                  </div>
+                )}
+
                 {descricao && (
                   <div>
                     <label className={labelClass}><AlignLeft size={14}/> {t(language, 'description')}</label>
@@ -264,9 +274,15 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
               /* -------------------- MODO EDIT/CREATE -------------------- */
               <div className="space-y-5 pb-4">
-                <div>
-                  <label className={labelClass}><FileText size={14} className="text-slate-400"/> {t(language, 'taskName')} *</label>
-                  <input value={nome} onChange={e => setNome(e.target.value)} className={inputClass} placeholder="Nome da Tarefa" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[80] relative">
+                  <div>
+                    <label className={labelClass}><FileText size={14} className="text-slate-400"/> {t(language, 'taskName')} *</label>
+                    <input value={nome} onChange={e => setNome(e.target.value)} className={inputClass} placeholder="Nome da Tarefa" />
+                  </div>
+                  <div>
+                    <label className={labelClass}><TextCursorInput size={14} className="text-slate-400"/> Status da Aplicação</label>
+                    <input value={statusApp} onChange={e => setStatusApp(e.target.value)} className={inputClass} placeholder="Ex: Aguardando Servidor, Falha API..." />
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[70] relative">
@@ -276,7 +292,6 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   </div>
                   <div>
                     <label className={labelClass}><Box size={14} className="text-slate-400"/> Categoria</label>
-                    {/* SELETOR DE CATEGORIA AQUI */}
                     <CustomSelect value={categoria} onChange={setCategoria} options={CATEGORIAS.map(c => ({value: c.label, label: c.label}))} colorMap="category" />
                   </div>
                 </div>
@@ -286,7 +301,6 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   <textarea value={descricao} onChange={e => setDescricao(e.target.value)} rows="3" className={inputClass} />
                 </div>
 
-                {/* SUBTAREFAS EDIT */}
                 <div className="bg-slate-50 dark:bg-slate-900/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/50">
                   <label className={labelClass}><CheckSquare size={14}/> {t(language, 'subtasks')}</label>
                   

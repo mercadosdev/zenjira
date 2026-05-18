@@ -12,10 +12,11 @@ import { t } from '../utils/i18n';
 import { CustomSelect, CustomDatePicker, StatusBadge, CategoryBadge } from './CustomUI';
 import { STATUS_OPTIONS, COMPLEXIDADE_OPTIONS, MER_PRIORITIES, CATEGORIAS } from '../utils/constants';
 
-// Configuração padrão das colunas
+// Configuração atualizada das colunas, agora incluindo "Status da Aplicação"
 const DEFAULT_COLUMNS = [
   { id: 'nome', label: 'Tarefa', minWidth: 'min-w-[200px]', isIgs: false },
   { id: 'status', label: 'Status', minWidth: 'min-w-[150px]', isIgs: false },
+  { id: 'statusApp', label: 'Status Aplicação', minWidth: 'min-w-[150px]', isIgs: false }, // NOVA COLUNA AQUI
   { id: 'categoria', label: 'Categoria', minWidth: 'min-w-[150px]', isIgs: false },
   { id: 'quadroId', label: 'Quadro', minWidth: 'min-w-[150px]', isIgs: false, hideInHistory: true },
   { id: 'responsavel', label: 'Responsável', minWidth: 'min-w-[150px]', isIgs: false },
@@ -35,11 +36,9 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
   const [editState, setEditState] = useState({ cardId: null, field: null, value: '' });
 
-  // ESTADO DAS COLUNAS (Permite a reordenação)
   const [columns, setColumns] = useState(DEFAULT_COLUMNS);
   const [draggedColIndex, setDraggedColIndex] = useState(null);
 
-  // LOGICA DO DRAG & DROP HTML5
   const handleDragStart = (e, index) => {
     setDraggedColIndex(index);
     e.dataTransfer.effectAllowed = "move";
@@ -60,7 +59,6 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
     setDraggedColIndex(null);
   };
 
-  // Filtrando colunas baseado no tipo de usuário e histórico
   const visibleColumns = columns.filter(col => {
     if (col.isIgs && !isIgs) return false;
     if (col.hideInHistory && isHistory) return false;
@@ -191,6 +189,7 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
     switch (colId) {
       case 'nome': return <span className="font-semibold">{renderCell(card, 'nome', card.data?.nome)}</span>;
       case 'status': return renderCell(card, 'status', card.status, 'select', STATUS_OPTIONS);
+      case 'statusApp': return renderCell(card, 'statusApp', card.data?.statusApp); // RENDERIZANDO AQUI
       case 'categoria': return renderCell(card, 'categoria', card.data?.categoria || 'Default', 'select', CATEGORIAS.map(c => ({value: c.label, label: c.label})));
       case 'quadroId': return renderCell(card, 'quadroId', getQuadroName(card.quadroId), 'select', quadros.map(q => ({ value: q.id, label: q.name })));
       case 'responsavel': return renderCell(card, 'responsavel', card.data?.responsavel, 'select', igsUsers.map(u => ({ value: u.name, label: u.name })));
@@ -221,7 +220,6 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
           <tr>
             <th className={`${thClass} w-10 text-center`}>{t(language, 'Ver')}</th>
             
-            {/* RENDERIZAÇÃO DAS COLUNAS DINÂMICAS COM DRAG & DROP */}
             {visibleColumns.map((col, idx) => (
               <th 
                 key={col.id} 
@@ -253,7 +251,6 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
                   </button>
                 </td>
                 
-                {/* RENDERIZAÇÃO DAS CÉLULAS BASEADA NA ORDEM DINÂMICA */}
                 {visibleColumns.map(col => (
                   <td key={col.id} className={tdClass}>
                     {renderCellContent(card, col.id)}
