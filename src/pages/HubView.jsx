@@ -5,7 +5,7 @@ import { db } from '../config/firebase';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
 import { getKeyFromVault, removeKeyFromVault } from '../utils/keyVault'; 
-import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, User, Menu, X } from 'lucide-react';
+import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, User, Menu, X, PanelLeftClose, PanelLeftOpen, Home, KeyRound } from 'lucide-react';
 import { t } from '../utils/i18n';
 
 import CardModal from '../components/CardModal';
@@ -35,6 +35,7 @@ export default function HubView() {
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // NOVO ESTADO
   
   const [isClientEditor, setIsClientEditor] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -45,6 +46,15 @@ export default function HubView() {
   const [copied, setCopied] = useState(false);
 
   const isIgs = userRole === 'igs';
+
+  // Força abrir a sidebar em telas menores para não quebrar o layout mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) setIsSidebarCollapsed(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const verifyAccess = async () => {
@@ -66,7 +76,7 @@ export default function HubView() {
         const editors = data.clientEditors || [];
         
         if (allowed.length > 0 && !allowed.includes(user?.uid)) {
-          alert("Você não tem permissão para aceder a este Hub.");
+          alert("Você não tem permissão para acessar este Hub.");
           clearActiveHub();
           navigate('/hubs');
         }
@@ -151,7 +161,7 @@ export default function HubView() {
       if (filters.prioridade) cardsData = cardsData.filter(c => c.data?.prioridade === filters.prioridade);
       if (filters.complexidade) cardsData = cardsData.filter(c => c.data?.complexidade === filters.complexidade);
       if (filters.tipo) cardsData = cardsData.filter(c => c.data?.troubleshooting?.tipo === filters.tipo);
-      if (filters.quadroId) cardsData = cardsData.filter(c => c.quadroId === filters.quadroId); // NOVO FILTRO AQUI
+      if (filters.quadroId) cardsData = cardsData.filter(c => c.quadroId === filters.quadroId); 
     }
 
     return cardsData;
@@ -284,54 +294,100 @@ export default function HubView() {
         />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-30 transform transition-transform duration-300 lg:relative lg:translate-x-0 w-64 bg-white dark:bg-igs-panelDark flex flex-col flex-shrink-0 shadow-2xl lg:shadow-lg border-r border-slate-200 dark:border-slate-800/50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 pb-2 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <FolderKanban className="text-igs-primary" size={24} /> Zenjira
-            </h2>
-            <p className="text-xs font-medium text-slate-500 mt-4 uppercase tracking-widest mb-2">{t(language, 'myHubs')}</p>
-          </div>
-          <button className="lg:hidden p-2 text-slate-400 hover:text-red-500 rounded-xl transition-colors" onClick={() => setIsSidebarOpen(false)}>
+      {/* SIDEBAR COM LÓGICA DE COLAPSO */}
+      <aside className={`fixed inset-y-0 left-0 z-30 transform transition-all duration-300 lg:relative lg:translate-x-0 bg-white dark:bg-igs-panelDark flex flex-col flex-shrink-0 shadow-2xl lg:shadow-lg border-r border-slate-200 dark:border-slate-800/50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}`}>
+        
+        <div className={`p-6 pb-2 flex ${isSidebarCollapsed ? 'flex-col gap-4' : 'justify-between'} items-center`}>
+          {!isSidebarCollapsed && (
+            <div className="w-full">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <FolderKanban className="text-igs-primary shrink-0" size={24} /> <span className="truncate">Zenjira</span>
+              </h2>
+              <p className="text-xs font-medium text-slate-500 mt-4 uppercase tracking-widest mb-2">{t(language, 'myHubs')}</p>
+            </div>
+          )}
+          
+          {isSidebarCollapsed && (
+            <FolderKanban className="text-igs-primary shrink-0" size={28} />
+          )}
+
+          {/* Botão de Colapso (Apenas Desktop) */}
+          <button 
+            className="hidden lg:flex p-1.5 text-slate-400 hover:text-igs-primary rounded-xl transition-colors bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800" 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            title="Alternar Menu"
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+
+          <button className="lg:hidden p-2 text-slate-400 hover:text-red-500 rounded-xl transition-colors absolute top-4 right-4" onClick={() => setIsSidebarOpen(false)}>
             <X size={20} />
           </button>
         </div>
         
-        <nav className="flex-1 overflow-y-auto px-4 mt-2 space-y-1.5 custom-scrollbar">
-          {userHubs.map(hub => (
-            <div 
-              key={hub.id} onClick={() => switchHub(hub)}
-              className={`p-3 rounded-xl cursor-pointer flex justify-between items-center transition-all text-sm font-medium ${
-                hub.id === hubId 
-                  ? 'bg-igs-primary text-white shadow-md shadow-igs-primary/40' 
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              <span className="truncate">{hub.name}</span>
-              {hub.hasChanges && <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 animate-pulse"></span>}
-            </div>
-          ))}
+        <nav className="flex-1 overflow-y-auto px-3 mt-2 space-y-1.5 custom-scrollbar">
+          {userHubs.map(hub => {
+            const isActive = hub.id === hubId;
+            const initials = hub.name.substring(0, 2).toUpperCase();
+            
+            return (
+              <div 
+                key={hub.id} onClick={() => switchHub(hub)}
+                title={isSidebarCollapsed ? hub.name : undefined}
+                className={`relative p-3 rounded-xl cursor-pointer flex items-center transition-all text-sm font-medium ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} ${
+                  isActive 
+                    ? 'bg-igs-primary text-white shadow-md shadow-igs-primary/40' 
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                {isSidebarCollapsed ? (
+                  <span className="font-bold">{initials}</span>
+                ) : (
+                  <span className="truncate pr-2">{hub.name}</span>
+                )}
+                {!isSidebarCollapsed && hub.hasChanges && <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 animate-pulse"></span>}
+                {isSidebarCollapsed && hub.hasChanges && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white dark:border-igs-panelDark"></span>}
+              </div>
+            );
+          })}
         </nav>
         
-        <div className="mx-4 mb-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 shadow-inner transition-colors">
-          <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest mb-2">{t(language, 'shareId')}</p>
-          <div className="flex items-center justify-between gap-2">
-            <code className="text-xs text-igs-accent font-mono truncate">{hubId}</code>
-            <button onClick={handleCopyId} className="text-slate-400 hover:text-igs-primary dark:hover:text-white transition-colors flex-shrink-0" title={t(language, 'copyId')}>
-              {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+        {/* COMPARTILHAR ID */}
+        <div className={`mx-3 mb-4 transition-all ${isSidebarCollapsed ? 'p-2 flex justify-center bg-transparent' : 'p-3 bg-slate-50 dark:bg-slate-800/50 shadow-inner'} rounded-xl border border-slate-200 dark:border-slate-700`}>
+          {isSidebarCollapsed ? (
+            <button onClick={handleCopyId} className="text-slate-400 hover:text-igs-primary transition-colors flex items-center justify-center h-8" title={t(language, 'copyId')}>
+              {copied ? <Check size={20} className="text-emerald-500" /> : (
+                <div className="relative flex items-center justify-center">
+                  <KeyRound size={20} />
+                  <div className="absolute -bottom-1 -right-2 bg-white dark:bg-igs-panelDark rounded-full p-[1px]">
+                    <Copy size={12} />
+                  </div>
+                </div>
+              )}
             </button>
-          </div>
+          ) : (
+            <>
+              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest mb-2">{t(language, 'shareId')}</p>
+              <div className="flex items-center justify-between gap-2">
+                <code className="text-xs text-igs-accent font-mono truncate">{hubId}</code>
+                <button onClick={handleCopyId} className="text-slate-400 hover:text-igs-primary dark:hover:text-white transition-colors flex-shrink-0" title={t(language, 'copyId')}>
+                  {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 transition-colors">
-          <button onClick={() => { clearActiveHub(); navigate('/hubs'); }} className="w-full py-3 px-4 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/90 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-white rounded-xl transition-all flex items-center justify-center gap-2 font-medium text-sm border border-slate-200 hover:border-red-200 dark:border-slate-700 dark:hover:border-transparent shadow-sm">
-            <ChevronLeft size={16} /> {t(language, 'backToHome')}
+        {/* VOLTAR PARA HOME */}
+        <div className={`p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 transition-colors flex ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+          <button onClick={() => { clearActiveHub(); navigate('/hubs'); }} title={isSidebarCollapsed ? t(language, 'backToHome') : undefined} className={`py-3 ${isSidebarCollapsed ? 'px-3 w-auto' : 'px-4 w-full'} bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/90 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-white rounded-xl transition-all flex items-center justify-center gap-2 font-medium text-sm border border-slate-200 hover:border-red-200 dark:border-slate-700 dark:hover:border-transparent shadow-sm`}>
+            <Home size={18} className="shrink-0" /> {!isSidebarCollapsed && <span className="truncate">{t(language, 'backToHome')}</span>}
           </button>
         </div>
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-20 bg-white dark:bg-igs-panel border-b border-slate-200 dark:border-slate-800 px-4 lg:px-8 flex justify-between items-center z-10 shadow-sm transition-colors duration-300">
+        <header className="h-20 bg-white dark:bg-igs-panel border-b border-slate-200 dark:border-slate-800 px-4 lg:px-8 flex justify-between items-center z-10 shadow-sm transition-colors duration-300 shrink-0">
           <div className="flex items-center gap-2 lg:gap-6">
             
             <button 
@@ -411,26 +467,34 @@ export default function HubView() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-transparent">
-          <div className="p-4 md:p-8 min-w-max min-h-full flex flex-col">
-            {currentView !== 'kanban' && (
-              <div className="mb-6">
-                <FilterBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} filters={filters} setFilters={setFilters} quadros={quadros} />
-              </div>
-            )}
+        {/* CONTÊINER PRINCIPAL REORGANIZADO PARA SCROLL PERFEITO */}
+        <main className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-transparent">
+          
+          {/* BARRA DE FILTROS FORA DO SCROLL DE CONTEÚDO */}
+          {currentView !== 'kanban' && (
+            <div className="p-4 md:px-8 md:pt-6 pb-0 shrink-0">
+              <FilterBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} filters={filters} setFilters={setFilters} quadros={quadros} />
+            </div>
+          )}
 
-            {currentView === 'kanban' && (
-              <KanbanBoard 
-                hubId={hubId} quadros={quadros} cards={activeCards} 
-                onViewCard={openViewModal} onAddCard={openCreateModal}
-                onRenameQuadro={handleQuadroAction} onDeleteQuadro={handleDeleteQuadro}
-                isClientEditor={isClientEditor} 
-              />
-            )}
+          {/* ÁREA DE SCROLL (KANBAN / PLANILHA) */}
+          <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
+            <div className={`p-4 md:p-8 min-h-full flex flex-col ${currentView === 'kanban' ? 'min-w-max' : ''}`}>
+              
+              {currentView === 'kanban' && (
+                <KanbanBoard 
+                  hubId={hubId} quadros={quadros} cards={activeCards} 
+                  onViewCard={openViewModal} onAddCard={openCreateModal}
+                  onRenameQuadro={handleQuadroAction} onDeleteQuadro={handleDeleteQuadro}
+                  isClientEditor={isClientEditor} 
+                />
+              )}
 
-            {currentView === 'planilha' && <SpreadsheetView cards={activeCards} quadros={quadros} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
-            {currentView === 'historico' && <SpreadsheetView cards={historyCards} quadros={quadros} isHistory={true} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
+              {currentView === 'planilha' && <SpreadsheetView cards={activeCards} quadros={quadros} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
+              {currentView === 'historico' && <SpreadsheetView cards={historyCards} quadros={quadros} isHistory={true} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
+            </div>
           </div>
+
         </main>
 
         {modalConfig.isOpen && (

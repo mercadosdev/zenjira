@@ -14,21 +14,21 @@ export default function FilterBar({ searchTerm, setSearchTerm, filters, setFilte
   const inputClass = "px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-igs-primary text-sm text-slate-800 dark:text-slate-200 transition-all";
 
   return (
-    <div className="bg-slate-50 dark:bg-igs-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-wrap gap-4 items-center shadow-sm">
+    <div className="bg-slate-50 dark:bg-igs-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-wrap gap-3 md:gap-4 items-center shadow-sm">
       
-      {/* BUSCA GLOBAL */}
-      <div className="flex-1 min-w-[280px] relative">
+      {/* BUSCA GLOBAL (Tamanho Controlado) */}
+      <div className="flex-1 min-w-[150px] md:max-w-xs relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
         <input 
           type="text" 
-          placeholder={isIgs ? "Buscar Tarefa, Zendesk, Jira ou PKG..." : "Buscar Tarefa ou Zendesk..."}
+          placeholder={isIgs ? "Buscar Tarefa, Zendesk..." : "Buscar Tarefa ou Zendesk..."}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className={`${inputClass} w-full pl-10`}
         />
       </div>
 
-      {/* NOVO: FILTRO DE QUADRO */}
+      {/* FILTRO DE QUADRO */}
       {quadros && (
         <select name="quadroId" value={filters.quadroId || ''} onChange={handleFilterChange} className={inputClass}>
           <option value="">{t(language, 'Qualquer Quadro')}</option>
