@@ -5,7 +5,7 @@ import { db } from '../config/firebase';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
 import { getKeyFromVault, removeKeyFromVault } from '../utils/keyVault'; 
-import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, User, Menu, X, PanelLeftClose, PanelLeftOpen, Home, KeyRound } from 'lucide-react';
+import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, Menu, X, PanelLeftClose, PanelLeftOpen, Home, KeyRound } from 'lucide-react';
 import { t } from '../utils/i18n';
 
 import CardModal from '../components/CardModal';
@@ -99,25 +99,18 @@ export default function HubView() {
 
   useEffect(() => {
     if (activeHub && activeHubKey && user) {
+      setRawCards([]); // CORREÇÃO MAGISTRAL: Previne erro de chave velha ao trocar de Hub
+      
       const presenceRef = doc(db, `hubs/${hubId}/presence`, user.uid);
-      setDoc(presenceRef, { 
-        name: user.displayName, 
-        role: userRole, 
-        lastActive: serverTimestamp() 
-      }, { merge: true });
+      setDoc(presenceRef, { name: user.displayName, role: userRole, lastActive: serverTimestamp() }, { merge: true });
 
       const unsubPresence = onSnapshot(collection(db, `hubs/${hubId}/presence`), (snapshot) => {
         const now = new Date().getTime();
-        const active = snapshot.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(p => p.lastActive && (now - p.lastActive.toDate().getTime() < 15 * 60000));
-        setOnlineUsers(active);
+        setOnlineUsers(snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.lastActive && (now - p.lastActive.toDate().getTime() < 15 * 60000)));
       });
 
       const qQuadros = query(collection(db, `hubs/${hubId}/quadros`), orderBy('createdAt', 'asc'));
-      const unsubQuadros = onSnapshot(qQuadros, (snapshot) => {
-        setQuadros(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-      });
+      const unsubQuadros = onSnapshot(qQuadros, (snapshot) => setQuadros(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))));
 
       const qCards = query(collection(db, `hubs/${hubId}/cards`));
       const unsubCards = onSnapshot(qCards, (snapshot) => {
@@ -137,7 +130,6 @@ export default function HubView() {
   const processedCards = useMemo(() => {
     if (!activeHubKey) return [];
     
-    // NOVA ORDENAÇÃO BASE: Ordena todos os cards pelo campo "order"
     let cardsData = rawCards.map(card => {
       const decrypted = decryptData(card.content, activeHubKey);
       return { ...card, data: decrypted };
@@ -187,10 +179,8 @@ export default function HubView() {
             await addDoc(collection(db, `hubs/${hubId}/quadros`), { 
               name: value, createdAt: new Date(), color: 'bg-slate-100 dark:bg-slate-800/80 border-t-slate-400 dark:border-t-slate-500' 
             });
-            await logNotification(hubId, user?.displayName, `Criou o quadro: "${value}"`, 'success');
           } else {
             await updateDoc(doc(db, `hubs/${hubId}/quadros`, id), { name: value });
-            await logNotification(hubId, user?.displayName, `Renomeou o quadro para "${value}".`, 'info');
           }
         } catch (error) { console.error(error); }
       }
@@ -206,7 +196,6 @@ export default function HubView() {
         if (confirmed) {
           try {
             await deleteDoc(doc(db, `hubs/${hubId}/quadros`, quadroId));
-            await logNotification(hubId, user?.displayName, `Excluiu o quadro "${quadroName}".`, 'warning');
           } catch (error) { console.error(error); }
         }
       }
@@ -332,15 +321,12 @@ export default function HubView() {
           {userHubs.map(hub => {
             const isActive = hub.id === hubId;
             const initials = hub.name.substring(0, 2).toUpperCase();
-            
             return (
               <div 
                 key={hub.id} onClick={() => switchHub(hub)}
                 title={isSidebarCollapsed ? hub.name : undefined}
                 className={`relative p-3 rounded-xl cursor-pointer flex items-center transition-all text-sm font-medium ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} ${
-                  isActive 
-                    ? 'bg-igs-primary text-white shadow-md shadow-igs-primary/40' 
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                  isActive ? 'bg-igs-primary text-white shadow-md shadow-igs-primary/40' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 {isSidebarCollapsed ? (
@@ -361,9 +347,7 @@ export default function HubView() {
               {copied ? <Check size={20} className="text-emerald-500" /> : (
                 <div className="relative flex items-center justify-center">
                   <KeyRound size={20} />
-                  <div className="absolute -bottom-1 -right-2 bg-white dark:bg-igs-panelDark rounded-full p-[1px]">
-                    <Copy size={12} />
-                  </div>
+                  <div className="absolute -bottom-1 -right-2 bg-white dark:bg-igs-panelDark rounded-full p-[1px]"><Copy size={12} /></div>
                 </div>
               )}
             </button>
@@ -390,14 +374,9 @@ export default function HubView() {
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <header className="h-20 bg-white dark:bg-igs-panel border-b border-slate-200 dark:border-slate-800 px-4 lg:px-8 flex justify-between items-center z-10 shadow-sm transition-colors duration-300 shrink-0">
           <div className="flex items-center gap-2 lg:gap-6">
-            
-            <button 
-              onClick={() => setIsSidebarOpen(true)} 
-              className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl lg:hidden transition-colors"
-            >
+            <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl lg:hidden transition-colors">
               <Menu size={24} />
             </button>
-
             <div>
               <h1 className="text-lg lg:text-2xl font-bold text-slate-800 dark:text-white m-0 tracking-tight flex items-center gap-2 lg:gap-3">
                 <span className="truncate max-w-[150px] lg:max-w-none">{activeHub.name}</span>
@@ -424,11 +403,6 @@ export default function HubView() {
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-igs-panel rounded-full z-10"></span>
                   </div>
                 ))}
-                {onlineUsers.length > 4 && (
-                  <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-igs-panel flex items-center justify-center text-[10px] font-semibold z-10 text-slate-500">
-                    +{onlineUsers.length - 4}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -448,16 +422,9 @@ export default function HubView() {
             </div>
 
             <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1 hidden lg:block"></div>
-
-            <button onClick={handleManualRefresh} className={`p-2 text-slate-400 hover:text-blue-500 transition-colors hidden sm:block ${isRefreshing ? 'animate-spin text-blue-500' : ''}`} title={t(language, 'refresh')}>
-              <RefreshCw size={20} />
-            </button>
-            <button onClick={toggleLanguage} className="hidden sm:flex items-center gap-1 p-2 text-slate-400 hover:text-igs-primary dark:text-slate-400 font-medium text-xs">
-              <Languages size={18} /> {t(language, 'language')}
-            </button>
-            <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-igs-primary dark:hover:text-amber-400 rounded-full transition-colors">
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
+            <button onClick={handleManualRefresh} className={`p-2 text-slate-400 hover:text-blue-500 transition-colors hidden sm:block ${isRefreshing ? 'animate-spin text-blue-500' : ''}`} title={t(language, 'refresh')}><RefreshCw size={20} /></button>
+            <button onClick={toggleLanguage} className="hidden sm:flex items-center gap-1 p-2 text-slate-400 hover:text-igs-primary dark:text-slate-400 font-medium text-xs"><Languages size={18} /> {t(language, 'language')}</button>
+            <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-igs-primary dark:hover:text-amber-400 rounded-full transition-colors">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
             <NotificationBell hubId={hubId} />
             
             <div className="hidden xl:flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-slate-800 gap-1 ml-2">
@@ -469,7 +436,6 @@ export default function HubView() {
         </header>
 
         <main className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-transparent">
-          
           {currentView !== 'kanban' && (
             <div className="p-4 md:px-8 md:pt-6 pb-0 shrink-0">
               <FilterBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} filters={filters} setFilters={setFilters} quadros={quadros} />
@@ -478,7 +444,6 @@ export default function HubView() {
 
           <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
             <div className={`p-4 md:p-8 min-h-full flex flex-col ${currentView === 'kanban' ? 'min-w-max' : ''}`}>
-              
               {currentView === 'kanban' && (
                 <KanbanBoard 
                   hubId={hubId} quadros={quadros} cards={activeCards} 
@@ -487,12 +452,10 @@ export default function HubView() {
                   isClientEditor={isClientEditor} 
                 />
               )}
-
               {currentView === 'planilha' && <SpreadsheetView cards={activeCards} quadros={quadros} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
               {currentView === 'historico' && <SpreadsheetView cards={historyCards} quadros={quadros} isHistory={true} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
             </div>
           </div>
-
         </main>
 
         {modalConfig.isOpen && (

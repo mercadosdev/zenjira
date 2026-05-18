@@ -1,11 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
 import { doc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { logNotification } from './NotificationBell';
-import { Plus, Edit2, Trash2, Search, X, GripVertical, Palette, TextCursorInput, Copy, ArrowRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, GripVertical, Palette, TextCursorInput, Copy, ArrowRight, ChevronUp, ChevronDown, Calendar, History, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BOARD_COLORS } from '../utils/constants';
 import { t } from '../utils/i18n';
@@ -23,8 +23,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
   const [colorPickerOpen, setColorPickerOpen] = useState(null);
 
   const [focusedCardId, setFocusedCardId] = useState(null);
-  
-  // NOVO: Estado para gerenciar a ação do Drag & Drop entre colunas diferentes
   const [pendingDrop, setPendingDrop] = useState(null);
 
   const handleSearchChange = (quadroId, value) => setColSearch(prev => ({ ...prev, [quadroId]: value }));
@@ -40,7 +38,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch (e) { console.error(e); }
   };
 
-  // NOVA LÓGICA DE DRAG & DROP E ORDENAÇÃO
+  // Drag and Drop (Para reordenação por clique-e-arrasta)
   const onDragEnd = async (result) => {
     if (!canEdit) return; 
 
@@ -49,25 +47,23 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
 
     if (source.droppableId === destination.droppableId) {
       if (source.index === destination.index) return;
-      // Reordenação na MESMA coluna
       handleReorder(source, destination, draggableId);
     } else {
-      // Movendo para OUTRA coluna (Abre o Modal)
       setPendingDrop(result);
     }
   };
 
   const handleReorder = async (source, destination, draggableId) => {
-    const colCards = cards.filter(c => c.quadroId === destination.droppableId);
+    const colCards = getSortedColCards(destination.droppableId);
     const newColCards = Array.from(colCards);
     const [moved] = newColCards.splice(source.index, 1);
     newColCards.splice(destination.index, 0, moved);
 
-    // Calcula a nova ordem (metade do caminho entre o card anterior e o próximo)
     const prev = destination.index > 0 ? newColCards[destination.index - 1] : null;
     const next = destination.index < newColCards.length - 1 ? newColCards[destination.index + 1] : null;
-    const prevOrder = prev?.order ?? 0;
-    const nextOrder = next?.order ?? (prevOrder + 100000);
+    
+    const prevOrder = prev?.order ?? (prev?.createdAt?.toMillis ? prev.createdAt.toMillis() : 0);
+    const nextOrder = next?.order ?? (next?.createdAt?.toMillis ? next.createdAt.toMillis() : (prevOrder + 100000));
     const newOrder = (prevOrder + nextOrder) / 2;
 
     try {
@@ -75,21 +71,57 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch(e) { console.error(e); }
   };
 
+  // NOVO: Reordenação Manual Precisa via Setas
+  const getSortedColCards = (quadroId) => {
+    return cards.filter(c => c.quadroId === quadroId).sort((a, b) => {
+      const orderA = a.order ?? (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0);
+      const orderB = b.order ?? (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);
+      return orderA - orderB;
+    });
+  };
+
+  const moveCardManual = async (cardId, quadroId, direction) => {
+    if (!canEdit) return;
+    const colCards = getSortedColCards(quadroId);
+    const currentIndex = colCards.findIndex(c => c.id === cardId);
+    if (currentIndex < 0) return;
+
+    let newOrder;
+    if (direction === 'up' && currentIndex > 0) {
+      const prev = colCards[currentIndex - 1];
+      const prevPrev = currentIndex > 1 ? colCards[currentIndex - 2] : null;
+      const prevOrder = prev.order ?? (prev.createdAt?.toMillis ? prev.createdAt.toMillis() : 0);
+      const prevPrevOrder = prevPrev ? (prevPrev.order ?? (prevPrev.createdAt?.toMillis ? prevPrev.createdAt.toMillis() : 0)) : prevOrder - 100000;
+      newOrder = (prevOrder + prevPrevOrder) / 2;
+    } else if (direction === 'down' && currentIndex < colCards.length - 1) {
+      const next = colCards[currentIndex + 1];
+      const nextNext = currentIndex < colCards.length - 2 ? colCards[currentIndex + 2] : null;
+      const nextOrder = next.order ?? (next.createdAt?.toMillis ? next.createdAt.toMillis() : 0);
+      const nextNextOrder = nextNext ? (nextNext.order ?? (nextNext.createdAt?.toMillis ? nextNext.createdAt.toMillis() : 0)) : nextOrder + 100000;
+      newOrder = (nextOrder + nextNextOrder) / 2;
+    } else {
+      return; 
+    }
+
+    try {
+      await updateDoc(doc(db, `hubs/${hubId}/cards`, cardId), { order: newOrder, updatedAt: new Date() });
+    } catch (e) { console.error(e); }
+  };
+
   const handleConfirmDrop = async (action) => {
     if (!pendingDrop) return;
-    const { source, destination, draggableId } = pendingDrop;
+    const { destination, draggableId } = pendingDrop;
     setPendingDrop(null);
 
-    const destCards = cards.filter(c => c.quadroId === destination.droppableId);
+    const destCards = getSortedColCards(destination.droppableId);
     const destQuadro = quadros.find(q => q.id === destination.droppableId);
     const cardToMove = cards.find(c => c.id === draggableId);
     if (!cardToMove || !destQuadro) return;
 
-    // Calcula a ordem de chegada
     const prev = destination.index > 0 ? destCards[destination.index - 1] : null;
     const next = destination.index < destCards.length ? destCards[destination.index] : null;
-    const prevOrder = prev?.order ?? 0;
-    const nextOrder = next?.order ?? (prevOrder + 100000);
+    const prevOrder = prev?.order ?? (prev?.createdAt?.toMillis ? prev.createdAt.toMillis() : 0);
+    const nextOrder = next?.order ?? (next?.createdAt?.toMillis ? next.createdAt.toMillis() : (prevOrder + 100000));
     const newOrder = (prevOrder + nextOrder) / 2;
 
     const cardData = decryptData(cardToMove.content, activeHubKey);
@@ -104,7 +136,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
         });
         await logNotification(hubId, user?.displayName, `Moveu a tarefa "${taskName}" para "${destQuadro.name}"`, 'info');
       } else if (action === 'copy') {
-        // Clona a tarefa com um novo ID mantendo os dados originais
         await addDoc(collection(db, `hubs/${hubId}/cards`), {
           quadroId: destination.droppableId,
           status: cardToMove.status,
@@ -128,13 +159,34 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     setFocusedCardId(null);
   };
 
+  // NOVO: Cálculo inteligente de cores com base na data de entrega
+  const getDeliveryColorClass = (previsaoEntrega, complexidade) => {
+    let baseBorder = isIgs && complexidade === 'Alta' ? 'border-red-500' : (isIgs && complexidade === 'Média' ? 'border-amber-500' : 'border-igs-primary');
+
+    if (!previsaoEntrega) return baseBorder;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const delivery = new Date(previsaoEntrega + 'T12:00:00');
+    delivery.setHours(0, 0, 0, 0);
+    
+    const diffTime = delivery - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return 'border-red-600 ring-1 ring-red-600 shadow-red-900/10'; // Hoje ou Atrasado
+    if (diffDays === 1) return 'border-orange-500 ring-1 ring-orange-500 shadow-orange-900/10'; // Amanhã
+    if (diffDays <= 7) return 'border-yellow-400 ring-1 ring-yellow-400 shadow-yellow-900/10'; // 1 Semana
+
+    return baseBorder;
+  };
+
   return (
     <>
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-6 items-start h-full">
           <AnimatePresence>
             {quadros.map((quadro) => {
-              let quadroCards = cards.filter(c => c.quadroId === quadro.id && !['Cancelado', 'Na rua'].includes(c.status));
+              let quadroCards = getSortedColCards(quadro.id).filter(c => !['Cancelado', 'Na rua'].includes(c.status));
 
               const searchTerm = colSearch[quadro.id]?.toLowerCase();
               if (searchTerm) {
@@ -213,7 +265,11 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                         <AnimatePresence>
                           {quadroCards.map((card, index) => {
                             const cardData = card.data || decryptData(card.content, activeHubKey);
-                            const leftBorder = isIgs && cardData?.complexidade === 'Alta' ? 'border-red-500' : (isIgs && cardData?.complexidade === 'Média' ? 'border-amber-500' : 'border-igs-primary');
+                            
+                            // Aplicação inteligente de Borda baseada em Prazos e Prioridade
+                            const leftBorder = cardData?.envioPrioritario 
+                                               ? 'border-red-600 ring-1 ring-red-500 shadow-red-500/20' 
+                                               : getDeliveryColorClass(cardData?.previsaoEntrega, cardData?.complexidade);
                             
                             const subtasks = cardData?.subtasks || [];
                             const completedSubtasks = subtasks.filter(s => s.completed).length;
@@ -242,6 +298,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                       style={{ ...provided.draggableProps.style }}
                                     >
 
+                                      {/* BALÃO FLUTUANTE DE STATUS */}
                                       {isFocused && hasStatusApp && (
                                         <div className="absolute z-[120] top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-64 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
                                           <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white dark:bg-slate-800 border-t border-l border-slate-200 dark:border-slate-700 rotate-45"></div>
@@ -263,15 +320,47 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                       )}
 
                                       <div className="flex items-start justify-between gap-2 mb-2">
-                                        <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm break-words leading-snug">
-                                          {cardData?.nome || '⚠️ Falha ao descriptografar'}
-                                        </h4>
+                                        
+                                        <div className="flex-1">
+                                          {/* FLAG URGENTE */}
+                                          {cardData?.envioPrioritario && (
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-900/60 text-[8px] font-bold tracking-widest text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 mb-2">
+                                              <Flame size={10}/> URGENTE
+                                            </span>
+                                          )}
+                                          <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm break-words leading-snug">
+                                            {cardData?.nome || '⚠️ Falha ao descriptografar'}
+                                          </h4>
+                                        </div>
+
+                                        {/* NOVO: Setas Manuais de Reordenação e Ícone de Arrasto */}
                                         {canEdit && (
-                                          <div {...provided.dragHandleProps} className="text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                                            <GripVertical size={16} />
+                                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex flex-col border border-slate-200 dark:border-slate-700 rounded-md bg-slate-50 dark:bg-slate-900/50 overflow-hidden">
+                                              <button onClick={(e) => { e.stopPropagation(); moveCardManual(card.id, quadro.id, 'up'); }} className="p-0.5 text-slate-400 hover:text-igs-primary hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" title="Mover para cima"><ChevronUp size={14}/></button>
+                                              <div className="h-px bg-slate-200 dark:bg-slate-700 w-full"></div>
+                                              <button onClick={(e) => { e.stopPropagation(); moveCardManual(card.id, quadro.id, 'down'); }} className="p-0.5 text-slate-400 hover:text-igs-primary hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" title="Mover para baixo"><ChevronDown size={14}/></button>
+                                            </div>
+                                            <div {...provided.dragHandleProps} className="p-1 text-slate-300 dark:text-slate-600 hover:text-igs-primary cursor-grab active:cursor-grabbing" onClick={e => e.stopPropagation()}>
+                                              <GripVertical size={16} />
+                                            </div>
                                           </div>
                                         )}
                                       </div>
+
+                                      {/* CUES VISUAIS DE PREVISÃO E ADIAMENTO */}
+                                      {cardData?.previsaoEntrega && (
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                                            <Calendar size={12}/> {new Date(cardData.previsaoEntrega + 'T12:00:00').toLocaleDateString()}
+                                          </span>
+                                          {cardData?.adiamentosEntrega > 0 && (
+                                            <span className="flex items-center gap-0.5 text-[9px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-1 rounded" title={`${cardData.adiamentosEntrega} adiamentos registrados`}>
+                                              <History size={10}/> +{cardData.adiamentosEntrega}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
 
                                       {totalSubtasks > 0 && (
                                         <div className="mb-3">
@@ -336,7 +425,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
         </div>
       </DragDropContext>
 
-      {/* MODAL DE CÓPIA/MOVER (Ativado ao trocar um card de quadro) */}
+      {/* MODAL DE CÓPIA/MOVER */}
       <AnimatePresence>
         {pendingDrop && (
           <motion.div 

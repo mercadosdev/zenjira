@@ -6,14 +6,15 @@ import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/fi
 import { db } from '../config/firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logNotification } from './NotificationBell';
-import { X, FileText, UserCircle, Tag, Clock, AlertTriangle, Settings, Box, LayoutList, ExternalLink, Edit3, AlignLeft, CheckSquare, Plus, Trash2, TextCursorInput } from 'lucide-react';
+import { X, FileText, UserCircle, Tag, Clock, AlertTriangle, Settings, Box, LayoutList, ExternalLink, Edit3, AlignLeft, CheckSquare, Plus, Trash2, TextCursorInput, Flame, Copy, History } from 'lucide-react';
 import { t } from '../utils/i18n';
 
+// Custom UI
 import { CustomSelect, CustomDatePicker, StatusBadge, CategoryBadge } from './CustomUI';
 import { STATUS_OPTIONS, COMPLEXIDADE_OPTIONS, MER_PRIORITIES, CATEGORIAS } from '../utils/constants';
 
 export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwitchToEdit, isClientEditor }) {
-  const { user, userRole, activeHubKey, igsUsers, language } = useAppStore();
+  const { user, userRole, activeHubKey, igsUsers, language, openDialog } = useAppStore();
   const isIgs = userRole === 'igs';
   const canEdit = isIgs || isClientEditor;
 
@@ -26,6 +27,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
   const [comentarios, setComentarios] = useState('');
   const [previsaoEntrega, setPrevisaoEntrega] = useState('');
   const [zendesk, setZendesk] = useState('');
+  const [envioPrioritario, setEnvioPrioritario] = useState(false); // NOVO
   
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtask, setNewSubtask] = useState('');
@@ -56,6 +58,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
       setPrevisaoEntrega(data?.previsaoEntrega || '');
       setZendesk(data?.zendesk || '');
       setSubtasks(data?.subtasks || []); 
+      setEnvioPrioritario(data?.envioPrioritario || false); 
 
       if (isIgs) {
         setPrioridade(data?.prioridade || '');
@@ -87,6 +90,35 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     setSubtasks(subtasks.filter(s => s.id !== id));
   };
 
+  // LÓGICA DE DUPLICAR
+  const handleDuplicate = () => {
+    openDialog({
+      type: 'prompt',
+      title: 'Duplicar Tarefa',
+      message: 'Insira um nome para a nova tarefa:',
+      defaultValue: `${nome} (Cópia)`,
+      onConfirm: async (newName) => {
+        if (!newName) return;
+        setLoading(true);
+        const newPayload = { ...card.data, nome: newName };
+        const encrypted = encryptData(newPayload, activeHubKey);
+        try {
+          await addDoc(collection(db, `hubs/${hubId}/cards`), {
+            quadroId: card.quadroId,
+            status: card.status,
+            order: Date.now(), 
+            content: encrypted,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+          await logNotification(hubId, user?.displayName, `Duplicou a tarefa "${nome}" para "${newName}"`, 'success');
+          onClose();
+        } catch(e) { console.error(e); }
+        setLoading(false);
+      }
+    });
+  };
+
   const handleSave = async () => {
     if (!canEdit) return;
     if (!nome) return alert("O Nome da Tarefa é obrigatório.");
@@ -98,6 +130,16 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
       currentStatusAppUpdatedAt = new Date().toISOString();
     }
 
+    // LÓGICA DE ADIAMENTOS: Se a nova data é MAIOR que a antiga, soma +1
+    let currentAdiamentos = card?.data?.adiamentosEntrega || 0;
+    if (previsaoEntrega && card?.data?.previsaoEntrega) {
+       const newDate = new Date(previsaoEntrega + 'T12:00:00');
+       const oldDate = new Date(card.data.previsaoEntrega + 'T12:00:00');
+       if (newDate > oldDate) {
+          currentAdiamentos += 1;
+       }
+    }
+
     const cardDataPayload = {
       nome, 
       statusApp, 
@@ -107,8 +149,10 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
       responsavel, 
       comentarios, 
       previsaoEntrega, 
+      adiamentosEntrega: currentAdiamentos,
       zendesk, 
       subtasks,
+      envioPrioritario,
       ...(isIgs && { prioridade, jira, comentariosInternos, complexidade, troubleshooting: { tipo, versao, pkg }, delivery: { dlv, versaoGerada, pkgGerada } })
     };
 
@@ -120,7 +164,6 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
         await updateDoc(cardRef, { status, content: encryptedContent, updatedAt: serverTimestamp() });
         await logNotification(hubId, user?.displayName, `Atualizou a tarefa: "${nome}"`, 'info');
       } else if (mode === 'create') {
-        // NOVO: Adicionado campo order com Date.now() para forçar a tarefa pro final da fila
         await addDoc(collection(db, `hubs/${hubId}/cards`), { quadroId, status, order: Date.now(), content: encryptedContent, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
         await logNotification(hubId, user?.displayName, `Criou a tarefa: "${nome}"`, 'success');
       }
@@ -158,33 +201,39 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     <AnimatePresence>
       <motion.div 
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-start md:items-center z-50 p-4 overflow-y-auto"
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-start md:items-center z-[150] p-4 overflow-y-auto"
         onClick={onClose}
       >
         <motion.div 
           initial={{ y: 50, scale: 0.95 }} animate={{ y: 0, scale: 1 }} exit={{ y: 20, scale: 0.95 }} transition={{ type: "spring", bounce: 0.3 }}
-          className="bg-white dark:bg-igs-panel p-8 rounded-3xl w-full max-w-2xl shadow-2xl relative border border-slate-100 dark:border-slate-800 my-auto"
+          className="bg-white dark:bg-igs-panel p-6 md:p-8 rounded-3xl w-full max-w-2xl shadow-2xl relative border border-slate-100 dark:border-slate-800 my-auto"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex justify-between items-start mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
             <div className="pr-4">
               <h2 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <LayoutList className="text-igs-primary" />
+                <LayoutList className="text-igs-primary shrink-0" />
                 {isView ? nome : (mode === 'edit' ? t(language, 'editTask') : t(language, 'newTask'))}
               </h2>
               {isView && (
                 <div className="mt-3 flex gap-2 items-center flex-wrap">
                   <StatusBadge status={status} />
                   {categoria && categoria !== 'Default' && <CategoryBadge categoryLabel={categoria} />}
+                  {envioPrioritario && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-red-200 dark:border-red-900/60 text-[10px] font-bold tracking-wide text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20"><Flame size={12}/> URGENTE</span>}
                 </div>
               )}
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {isView && canEdit && (
-                <button onClick={onSwitchToEdit} className="p-2 rounded-xl bg-igs-primary/10 text-igs-primary hover:bg-igs-primary/20 transition-colors" title={t(language, 'editTask')}>
-                  <Edit3 size={20} />
-                </button>
+                <>
+                  <button onClick={handleDuplicate} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-igs-primary transition-colors" title="Duplicar Tarefa">
+                    <Copy size={20} />
+                  </button>
+                  <button onClick={onSwitchToEdit} className="p-2 rounded-xl bg-igs-primary/10 text-igs-primary hover:bg-igs-primary/20 transition-colors" title={t(language, 'editTask')}>
+                    <Edit3 size={20} />
+                  </button>
+                </>
               )}
               <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"><X size={24} /></button>
             </div>
@@ -192,7 +241,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
           
           <div className="space-y-6 max-h-[70vh] overflow-y-auto px-2 -mx-2 custom-scrollbar">
             
-            {/* MODO VIEW */}
+            {/* -------------------- MODO VIEW -------------------- */}
             {isView ? (
               <div className="space-y-6">
 
@@ -233,16 +282,23 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50">
                   <div>
                     <label className={labelClass}><UserCircle size={14}/> {t(language, 'responsible')}</label>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{responsavel || '-'}</div>
                   </div>
                   <div>
                     <label className={labelClass}><Clock size={14}/> {t(language, 'deliveryDate')}</label>
-                    <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{previsaoEntrega ? new Date(previsaoEntrega + 'T12:00:00').toLocaleDateString() : '-'}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{previsaoEntrega ? new Date(previsaoEntrega + 'T12:00:00').toLocaleDateString() : '-'}</div>
+                      {card.data?.adiamentosEntrega > 0 && (
+                        <span className="text-[10px] font-bold bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded-md flex items-center gap-1" title={`${card.data.adiamentosEntrega} adiamentos de entrega`}>
+                          <History size={10} /> +{card.data.adiamentosEntrega}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1 md:col-span-2">
                     <label className={labelClass}>Zendesk (Tickets)</label>
                     {renderLinks(zendesk, 'zendesk')}
                   </div>
@@ -259,13 +315,13 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-700 pt-6 mt-6">
                     <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 uppercase tracking-widest"><Settings size={16} className="text-slate-400" /> {t(language, 'internalFields')}</h3>
                     
-                    <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div><label className={labelClass}>{t(language, 'complexity')}</label><div className="text-sm font-semibold">{complexidade}</div></div>
                       <div><label className={labelClass}>{t(language, 'priority')}</label><div className="text-sm font-semibold">{prioridade || '-'}</div></div>
-                      <div className="col-span-2"><label className={labelClass}>Jira (Issues)</label>{renderLinks(jira, 'jira')}</div>
+                      <div className="col-span-1 md:col-span-2"><label className={labelClass}>Jira (Issues)</label>{renderLinks(jira, 'jira')}</div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/30">
                         <h4 className="font-bold text-[10px] uppercase text-amber-800 dark:text-amber-500 mb-2 flex items-center gap-1"><AlertTriangle size={12} /> Troubleshooting</h4>
                         <div className="space-y-2 text-sm text-amber-900 dark:text-amber-400">
@@ -288,8 +344,17 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
               </div>
             ) : (
 
-              /* MODO EDIT/CREATE */
+              /* -------------------- MODO EDIT/CREATE -------------------- */
               <div className="space-y-5 pb-4">
+                
+                {/* CHECKBOX DE PRIORIDADE */}
+                <div className="flex flex-wrap items-center gap-2 mb-2 bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-900/50">
+                  <input type="checkbox" id="prioritario" checked={envioPrioritario} onChange={e => setEnvioPrioritario(e.target.checked)} className="w-5 h-5 rounded text-red-600 focus:ring-red-500 border-red-300 cursor-pointer" />
+                  <label htmlFor="prioritario" className="text-sm font-bold text-red-700 dark:text-red-400 flex items-center gap-2 cursor-pointer">
+                    <Flame size={16} /> Marcar como Envio Prioritário (Urgente)
+                  </label>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[80] relative">
                   <div>
                     <label className={labelClass}><FileText size={14} className="text-slate-400"/> {t(language, 'taskName')} *</label>
@@ -345,7 +410,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[60] relative">
                    <div>
-                    <label className={labelClass}>Zendesk (Separados por vírgula)</label>
+                    <label className={labelClass}>Zendesk</label>
                     <input value={zendesk} onChange={e => setZendesk(e.target.value)} placeholder="Ex: 12345, 67890" className={inputClass} />
                   </div>
                   <div>
@@ -376,13 +441,13 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                     </div>
 
                     <div className="mb-5">
-                      <label className={labelClass}>Jira (Separados por vírgula)</label>
+                      <label className={labelClass}>Jira</label>
                       <input value={jira} onChange={e => setJira(e.target.value)} placeholder="Ex: MER-123, ONE-456" className={inputClass} />
                     </div>
 
                     <div className="bg-amber-50 dark:bg-amber-900/10 p-5 rounded-xl border border-amber-100 dark:border-amber-900/30 mb-5">
                       <h4 className="font-bold text-[10px] text-amber-800 dark:text-amber-500 mb-3 flex items-center gap-2 uppercase tracking-widest"><AlertTriangle size={14} /> Troubleshooting</h4>
-                      <div className="grid grid-cols-3 gap-3 z-[30] relative">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 z-[30] relative">
                         <div><label className="block text-[10px] font-semibold text-amber-700 mb-1">{t(language, 'type')}</label><CustomSelect value={tipo} onChange={setTipo} options={['Jogo', 'Servidor']} /></div>
                         <div><label className="block text-[10px] font-semibold text-amber-700 mb-1">{t(language, 'version')}</label><input value={versao} onChange={e => setVersao(e.target.value)} className={inputClass} /></div>
                         <div><label className="block text-[10px] font-semibold text-amber-700 mb-1">PKG</label><input value={pkg} onChange={e => setPkg(e.target.value)} className={inputClass} /></div>
@@ -391,7 +456,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
                     <div className="bg-igs-primary/5 p-5 rounded-xl border border-igs-primary/20 mb-5">
                       <h4 className="font-bold text-[10px] text-igs-primary mb-3 flex items-center gap-2 uppercase tracking-widest"><Box size={14} /> Delivery</h4>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div><label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-1">DLV</label><input value={dlv} onChange={e => setDlv(e.target.value)} className={inputClass} /></div>
                         <div><label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Ver. Gerada</label><input value={versaoGerada} onChange={e => setVersaoGerada(e.target.value)} className={inputClass} /></div>
                         <div><label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-1">PKG Gerada</label><input value={pkgGerada} onChange={e => setPkgGerada(e.target.value)} className={inputClass} /></div>
