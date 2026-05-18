@@ -38,7 +38,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch (e) { console.error(e); }
   };
 
-  // Drag and Drop (Para reordenação por clique-e-arrasta)
   const onDragEnd = async (result) => {
     if (!canEdit) return; 
 
@@ -71,7 +70,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch(e) { console.error(e); }
   };
 
-  // NOVO: Reordenação Manual Precisa via Setas
   const getSortedColCards = (quadroId) => {
     return cards.filter(c => c.quadroId === quadroId).sort((a, b) => {
       const orderA = a.order ?? (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0);
@@ -159,7 +157,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     setFocusedCardId(null);
   };
 
-  // NOVO: Cálculo inteligente de cores com base na data de entrega
   const getDeliveryColorClass = (previsaoEntrega, complexidade) => {
     let baseBorder = isIgs && complexidade === 'Alta' ? 'border-red-500' : (isIgs && complexidade === 'Média' ? 'border-amber-500' : 'border-igs-primary');
 
@@ -173,9 +170,9 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     const diffTime = delivery - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 0) return 'border-red-600 ring-1 ring-red-600 shadow-red-900/10'; // Hoje ou Atrasado
-    if (diffDays === 1) return 'border-orange-500 ring-1 ring-orange-500 shadow-orange-900/10'; // Amanhã
-    if (diffDays <= 7) return 'border-yellow-400 ring-1 ring-yellow-400 shadow-yellow-900/10'; // 1 Semana
+    if (diffDays <= 0) return 'border-red-600 ring-1 ring-red-600 shadow-red-900/10'; 
+    if (diffDays === 1) return 'border-orange-500 ring-1 ring-orange-500 shadow-orange-900/10'; 
+    if (diffDays <= 7) return 'border-yellow-400 ring-1 ring-yellow-400 shadow-yellow-900/10'; 
 
     return baseBorder;
   };
@@ -266,7 +263,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                           {quadroCards.map((card, index) => {
                             const cardData = card.data || decryptData(card.content, activeHubKey);
                             
-                            // Aplicação inteligente de Borda baseada em Prazos e Prioridade
                             const leftBorder = cardData?.envioPrioritario 
                                                ? 'border-red-600 ring-1 ring-red-500 shadow-red-500/20' 
                                                : getDeliveryColorClass(cardData?.previsaoEntrega, cardData?.complexidade);
@@ -298,20 +294,21 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                       style={{ ...provided.draggableProps.style }}
                                     >
 
-                                      {/* BALÃO FLUTUANTE DE STATUS */}
+                                      {/* BALÃO FLUTUANTE DE STATUS TOTALMENTE DESTACADO (ESCURO/INVERTIDO) */}
                                       {isFocused && hasStatusApp && (
-                                        <div className="absolute z-[120] top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-64 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
-                                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white dark:bg-slate-800 border-t border-l border-slate-200 dark:border-slate-700 rotate-45"></div>
+                                        <div className="absolute z-[120] top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-64 p-4 bg-slate-900 dark:bg-slate-950 rounded-2xl shadow-2xl shadow-slate-900/50 dark:shadow-black/80 border border-slate-700 dark:border-slate-800 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+                                          {/* Triângulo apontando para o Card */}
+                                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 dark:bg-slate-950 border-t border-l border-slate-700 dark:border-slate-800 rotate-45"></div>
                                           
-                                          <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-igs-primary tracking-wider mb-2">
+                                          <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-purple-300 tracking-wider mb-2">
                                             <TextCursorInput size={12} /> Status da Aplicação
                                           </span>
-                                          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 leading-snug">
+                                          <p className="text-sm font-semibold text-white leading-snug">
                                             {cardData.statusApp}
                                           </p>
                                           
                                           {cardData.statusAppUpdatedAt && (
-                                            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-[9px] text-slate-400 font-medium uppercase tracking-widest">
+                                            <div className="mt-3 pt-2 border-t border-slate-700/80 flex justify-between items-center text-[9px] text-slate-400 font-medium uppercase tracking-widest">
                                               <span>Atualizado:</span>
                                               <span>{new Date(cardData.statusAppUpdatedAt).toLocaleString()}</span>
                                             </div>
@@ -322,7 +319,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                       <div className="flex items-start justify-between gap-2 mb-2">
                                         
                                         <div className="flex-1">
-                                          {/* FLAG URGENTE */}
                                           {cardData?.envioPrioritario && (
                                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-900/60 text-[8px] font-bold tracking-widest text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 mb-2">
                                               <Flame size={10}/> URGENTE
@@ -333,7 +329,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                           </h4>
                                         </div>
 
-                                        {/* NOVO: Setas Manuais de Reordenação e Ícone de Arrasto */}
                                         {canEdit && (
                                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <div className="flex flex-col border border-slate-200 dark:border-slate-700 rounded-md bg-slate-50 dark:bg-slate-900/50 overflow-hidden">
@@ -348,7 +343,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                         )}
                                       </div>
 
-                                      {/* CUES VISUAIS DE PREVISÃO E ADIAMENTO */}
                                       {cardData?.previsaoEntrega && (
                                         <div className="flex items-center gap-2 mb-2">
                                           <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
