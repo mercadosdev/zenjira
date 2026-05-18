@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
@@ -11,7 +11,7 @@ import { BOARD_COLORS } from '../utils/constants';
 import { t } from '../utils/i18n';
 import { StatusBadge, CategoryBadge } from './CustomUI';
 
-// FEATURE FLAG: Mude para false para desligar o efeito de Blur se houver problemas de performance.
+// FEATURE FLAG: Mude para false para desligar o efeito de Blur global e o Pop-up caso haja problemas de performance.
 const FEATURE_FLAG_BLUR_EFFECT = true;
 
 export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCard, onRenameQuadro, onDeleteQuadro, isClientEditor }) {
@@ -23,9 +23,8 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
   const [showSearch, setShowSearch] = useState({});
   const [colorPickerOpen, setColorPickerOpen] = useState(null);
 
-  // ESTADOS DO NOVO EFEITO DE FOCO (BLUR)
+  // ESTADO PARA SABER QUAL CARD ESTÁ COM FOCO (HOVER)
   const [focusedCardId, setFocusedCardId] = useState(null);
-  const hoverTimer = useRef(null);
 
   const handleSearchChange = (quadroId, value) => setColSearch(prev => ({ ...prev, [quadroId]: value }));
   const toggleSearch = (quadroId) => {
@@ -62,17 +61,13 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch (error) { console.error("Erro ao mover card:", error); }
   };
 
-  // Funções do Hover
   const handleMouseEnter = (cardId) => {
     if (!FEATURE_FLAG_BLUR_EFFECT) return;
-    hoverTimer.current = setTimeout(() => {
-      setFocusedCardId(cardId);
-    }, 5000);
+    setFocusedCardId(cardId); // BLUR IMEDIATO! Sem setTimeout.
   };
 
   const handleMouseLeave = () => {
     if (!FEATURE_FLAG_BLUR_EFFECT) return;
-    if (hoverTimer.current) clearTimeout(hoverTimer.current);
     setFocusedCardId(null);
   };
 
@@ -174,7 +169,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                             return (
                               <Draggable key={card.id} draggableId={card.id} index={index} isDragDisabled={!canEdit}>
                                 {(provided, snapshot) => {
-                                  // Se começar a arrastar enquanto o hover estiver ativo, cancelamos o blur
+                                  // Se começar a arrastar, desliga o foco imediatamente
                                   if (snapshot.isDragging && isFocused) handleMouseLeave();
 
                                   return (
@@ -189,6 +184,29 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                       }`}
                                       style={{ ...provided.draggableProps.style }}
                                     >
+
+                                      {/* BALÃO FLUTUANTE DE STATUS DA APLICAÇÃO (POP-UP ABSOLUTO) */}
+                                      {isFocused && cardData?.statusApp && (
+                                        <div className="absolute z-[120] bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 w-64 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+                                          {/* Triângulo (Seta para baixo) */}
+                                          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white dark:bg-slate-800 border-b border-r border-slate-200 dark:border-slate-700 rotate-45"></div>
+                                          
+                                          <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-igs-primary tracking-wider mb-2">
+                                            <TextCursorInput size={12} /> Status da Aplicação
+                                          </span>
+                                          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 leading-snug">
+                                            {cardData.statusApp}
+                                          </p>
+                                          
+                                          {cardData.statusAppUpdatedAt && (
+                                            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-[9px] text-slate-400 font-medium uppercase tracking-widest">
+                                              <span>Atualizado:</span>
+                                              <span>{new Date(cardData.statusAppUpdatedAt).toLocaleString()}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+
                                       <div className="flex items-start justify-between gap-2 mb-2">
                                         <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm break-words leading-snug">
                                           {cardData?.nome || '⚠️ Falha ao descriptografar'}
@@ -199,14 +217,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                           </div>
                                         )}
                                       </div>
-
-                                      {/* NOVO: STATUS DA APLICAÇÃO VISÍVEL NO HOVER */}
-                                      {cardData?.statusApp && (
-                                        <div className="mt-1 mb-2 bg-igs-primary/5 border border-igs-primary/20 rounded p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                          <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-igs-primary tracking-wider mb-0.5"><TextCursorInput size={10} /> Status da Aplicação</span>
-                                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{cardData.statusApp}</p>
-                                        </div>
-                                      )}
 
                                       {totalSubtasks > 0 && (
                                         <div className="mb-3">
@@ -271,13 +281,13 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
         </div>
       </DragDropContext>
 
-      {/* OVERLAY DE BLUR GLOBAL (Ativado após 5 segundos de hover) */}
+      {/* OVERLAY DE BLUR GLOBAL (Imediato) */}
       {FEATURE_FLAG_BLUR_EFFECT && (
         <AnimatePresence>
           {focusedCardId && (
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm pointer-events-none transition-opacity duration-500"
+              className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm pointer-events-none transition-opacity duration-300"
             />
           )}
         </AnimatePresence>

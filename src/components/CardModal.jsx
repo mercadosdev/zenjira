@@ -19,7 +19,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
   const canEdit = isIgs || isClientEditor;
 
   const [nome, setNome] = useState('');
-  const [statusApp, setStatusApp] = useState(''); // NOVO: Status da aplicação em texto
+  const [statusApp, setStatusApp] = useState(''); 
   const [descricao, setDescricao] = useState('');
   const [status, setStatus] = useState('Na fila');
   const [categoria, setCategoria] = useState('Default'); 
@@ -48,7 +48,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     if (card && (mode === 'edit' || mode === 'view')) {
       const data = card.data; 
       setNome(data?.nome || '');
-      setStatusApp(data?.statusApp || ''); // Carrega status extra
+      setStatusApp(data?.statusApp || ''); 
       setDescricao(data?.descricao || '');
       setStatus(card.status || 'Na fila');
       setCategoria(data?.categoria || 'Default'); 
@@ -94,8 +94,23 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
     setLoading(true);
 
+    // NOVA LÓGICA: Verifica se o statusApp mudou para atualizar o timestamp
+    let currentStatusAppUpdatedAt = card?.data?.statusAppUpdatedAt || null;
+    if (statusApp !== (card?.data?.statusApp || '')) {
+      currentStatusAppUpdatedAt = new Date().toISOString();
+    }
+
     const cardDataPayload = {
-      nome, statusApp, descricao, categoria, responsavel, comentarios, previsaoEntrega, zendesk, subtasks,
+      nome, 
+      statusApp, 
+      statusAppUpdatedAt: currentStatusAppUpdatedAt, 
+      descricao, 
+      categoria, 
+      responsavel, 
+      comentarios, 
+      previsaoEntrega, 
+      zendesk, 
+      subtasks,
       ...(isIgs && { prioridade, jira, comentariosInternos, complexidade, troubleshooting: { tipo, versao, pkg }, delivery: { dlv, versaoGerada, pkgGerada } })
     };
 
@@ -186,6 +201,9 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   <div>
                     <label className={labelClass}><TextCursorInput size={14}/> Status da Aplicação</label>
                     <p className="text-sm font-semibold text-igs-primary bg-igs-primary/5 border border-igs-primary/20 p-3 rounded-xl">{statusApp}</p>
+                    {card.data?.statusAppUpdatedAt && (
+                       <p className="text-[10px] text-slate-400 mt-1.5 ml-1">Atualizado em: {new Date(card.data.statusAppUpdatedAt).toLocaleString()}</p>
+                    )}
                   </div>
                 )}
 
