@@ -22,7 +22,10 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
   const [showSearch, setShowSearch] = useState({});
   const [colorPickerOpen, setColorPickerOpen] = useState(null);
 
+  // Estados para o Pop-up inteligente
   const [focusedCardId, setFocusedCardId] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState('bottom'); 
+
   const [pendingDrop, setPendingDrop] = useState(null);
 
   const handleSearchChange = (quadroId, value) => setColSearch(prev => ({ ...prev, [quadroId]: value }));
@@ -147,8 +150,16 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch (error) { console.error(error); }
   };
 
-  const handleMouseEnter = (cardId, hasStatusApp) => {
+  // NOVA INTELIGÊNCIA ESPACIAL PARA O POP-UP
+  const handleMouseEnter = (e, cardId, hasStatusApp) => {
     if (!FEATURE_FLAG_BLUR_EFFECT || !hasStatusApp) return;
+    
+    // Obtém as coordenadas do card na tela
+    const rect = e.currentTarget.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    
+    // Se tiver menos de 180px em baixo, abre o balão pra CIMA. Se não, abre pra BAIXO.
+    setTooltipPos(spaceBelow < 180 ? 'top' : 'bottom');
     setFocusedCardId(cardId); 
   };
 
@@ -180,7 +191,9 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
   return (
     <>
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-6 items-start h-full">
+        {/* SCROLL HORIZONTAL COM EFEITO SNAP PARA O MOBILE */}
+        <div className="flex gap-4 sm:gap-6 items-start h-full overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-2 sm:px-0 w-full custom-scrollbar">
+          
           <AnimatePresence>
             {quadros.map((quadro) => {
               let quadroCards = getSortedColCards(quadro.id).filter(c => !['Cancelado', 'Na rua'].includes(c.status));
@@ -196,12 +209,16 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
               }
 
               const boardTheme = quadro.color || BOARD_COLORS[0].value;
+              // Verifica se alguma carta desta coluna tem o foco, para elevar a coluna inteira acima do overlay de blur
+              const isColFocused = quadroCards.some(c => c.id === focusedCardId);
 
               return (
                 <motion.div 
                   layout
                   initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.9 }}
-                  key={quadro.id} className={`flex flex-col min-w-[320px] w-[320px] ${focusedCardId ? 'relative z-50' : ''}`}
+                  key={quadro.id} 
+                  /* ESTILIZAÇÃO DO SWIPE: w-[88vw] no mobile obriga o usuário a ver 1 coluna por vez, snap-center centraliza */
+                  className={`flex flex-col shrink-0 min-w-[88vw] sm:min-w-[320px] w-[88vw] sm:w-[320px] snap-center ${isColFocused ? 'relative z-[120]' : 'z-10'}`}
                 >
                   <div className={`p-4 rounded-t-2xl border-b border-slate-200 dark:border-slate-800 border-t-4 shadow-sm flex flex-col gap-2 relative transition-colors ${boardTheme}`}>
                     <div className="flex justify-between items-center">
@@ -285,20 +302,25 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                     <div
                                       ref={provided.innerRef} {...provided.draggableProps} 
                                       onClick={() => onViewCard(card)} 
-                                      onMouseEnter={() => handleMouseEnter(card.id, hasStatusApp)}
+                                      onMouseEnter={(e) => handleMouseEnter(e, card.id, hasStatusApp)}
                                       onMouseLeave={handleMouseLeave}
                                       className={`group bg-white dark:bg-igs-panel p-4 mb-3 rounded-2xl border-l-4 cursor-pointer transition-all duration-300 ${leftBorder} ${
                                         snapshot.isDragging ? 'shadow-2xl scale-105 opacity-95 ring-2 ring-igs-primary z-[60]' : 
-                                        isFocused ? 'relative z-[100] scale-105 shadow-2xl ring-4 ring-igs-primary/50' : 'shadow hover:shadow-lg border-y border-r border-slate-100 dark:border-slate-800 z-10'
+                                        isFocused ? 'relative z-[150] scale-[1.02] shadow-2xl shadow-igs-primary/20 ring-4 ring-igs-primary/50' : 'shadow hover:shadow-lg border-y border-r border-slate-100 dark:border-slate-800 z-10'
                                       }`}
                                       style={{ ...provided.draggableProps.style }}
                                     >
 
-                                      {/* BALÃO FLUTUANTE DE STATUS TOTALMENTE DESTACADO (ESCURO/INVERTIDO) */}
+                                      {/* BALÃO FLUTUANTE DE STATUS INTELIGENTE */}
                                       {isFocused && hasStatusApp && (
-                                        <div className="absolute z-[120] top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-64 p-4 bg-slate-900 dark:bg-slate-950 rounded-2xl shadow-2xl shadow-slate-900/50 dark:shadow-black/80 border border-slate-700 dark:border-slate-800 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
-                                          {/* Triângulo apontando para o Card */}
-                                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 dark:bg-slate-950 border-t border-l border-slate-700 dark:border-slate-800 rotate-45"></div>
+                                        <div className={`absolute z-[160] left-1/2 -translate-x-1/2 w-64 p-4 bg-slate-900 dark:bg-slate-950 rounded-2xl shadow-2xl shadow-slate-900/50 dark:shadow-black/80 border border-slate-700 dark:border-slate-800 pointer-events-none animate-in fade-in zoom-in-95 duration-200 ${
+                                          tooltipPos === 'top' ? 'bottom-[calc(100%+16px)]' : 'top-[calc(100%+16px)]'
+                                        }`}>
+                                          
+                                          {/* Setinha apontando para o Card respeitando a direção */}
+                                          <div className={`absolute left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 dark:bg-slate-950 border-slate-700 dark:border-slate-800 rotate-45 ${
+                                            tooltipPos === 'top' ? '-bottom-2 border-b border-r' : '-top-2 border-t border-l'
+                                          }`}></div>
                                           
                                           <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-purple-300 tracking-wider mb-2">
                                             <TextCursorInput size={12} /> Status da Aplicação
@@ -407,7 +429,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
           </AnimatePresence>
 
           {isIgs && (
-            <div className="min-w-[320px] w-[320px] flex flex-col">
+            <div className="min-w-[320px] w-[320px] flex flex-col shrink-0 snap-center">
               <button 
                 onClick={() => { onRenameQuadro(null, '', true); }}
                 className="h-14 flex items-center justify-center gap-2 bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 font-semibold transition-colors"
@@ -458,7 +480,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
           {focusedCardId && (
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm pointer-events-none transition-opacity duration-300"
+              className="fixed inset-0 z-[100] bg-slate-900/40 dark:bg-slate-900/60 backdrop-blur-md pointer-events-none transition-all duration-300"
             />
           )}
         </AnimatePresence>

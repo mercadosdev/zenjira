@@ -99,7 +99,7 @@ export default function HubView() {
 
   useEffect(() => {
     if (activeHub && activeHubKey && user) {
-      setRawCards([]); // CORREÇÃO MAGISTRAL: Previne erro de chave velha ao trocar de Hub
+      setRawCards([]); 
       
       const presenceRef = doc(db, `hubs/${hubId}/presence`, user.uid);
       setDoc(presenceRef, { name: user.displayName, role: userRole, lastActive: serverTimestamp() }, { merge: true });
@@ -266,6 +266,13 @@ export default function HubView() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Lógica do botão sequencial no Mobile
+  const handleCycleView = () => {
+    if (currentView === 'kanban') setCurrentView('planilha');
+    else if (currentView === 'planilha') setCurrentView('historico');
+    else setCurrentView('kanban');
+  };
+
   if (!activeHub) {
     return (
       <div className="h-screen flex items-center justify-center bg-igs-bg dark:bg-igs-dark">
@@ -372,12 +379,12 @@ export default function HubView() {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-20 bg-white dark:bg-igs-panel border-b border-slate-200 dark:border-slate-800 px-4 lg:px-8 flex justify-between items-center z-10 shadow-sm transition-colors duration-300 shrink-0">
+        <header className="h-20 bg-white dark:bg-igs-panel border-b border-slate-200 dark:border-slate-800 px-4 lg:px-6 flex justify-between items-center z-10 shadow-sm transition-colors duration-300 shrink-0">
           <div className="flex items-center gap-2 lg:gap-6">
-            <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl lg:hidden transition-colors">
+            <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl lg:hidden transition-colors">
               <Menu size={24} />
             </button>
-            <div>
+            <div className="hidden sm:block">
               <h1 className="text-lg lg:text-2xl font-bold text-slate-800 dark:text-white m-0 tracking-tight flex items-center gap-2 lg:gap-3">
                 <span className="truncate max-w-[150px] lg:max-w-none">{activeHub.name}</span>
                 {isIgs && (
@@ -407,7 +414,7 @@ export default function HubView() {
             </div>
           </div>
           
-          <div className="flex items-center gap-1 lg:gap-4">
+          <div className="flex items-center gap-1 lg:gap-4 shrink-0">
             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
               {(isIgs || isClientEditor) && (
                 <button onClick={() => setIsQuickAddOpen(true)} className="flex items-center gap-1.5 px-2 lg:px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-sm transition-colors" title="Adição Rápida">
@@ -424,14 +431,25 @@ export default function HubView() {
             <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1 hidden lg:block"></div>
             <button onClick={handleManualRefresh} className={`p-2 text-slate-400 hover:text-blue-500 transition-colors hidden sm:block ${isRefreshing ? 'animate-spin text-blue-500' : ''}`} title={t(language, 'refresh')}><RefreshCw size={20} /></button>
             <button onClick={toggleLanguage} className="hidden sm:flex items-center gap-1 p-2 text-slate-400 hover:text-igs-primary dark:text-slate-400 font-medium text-xs"><Languages size={18} /> {t(language, 'language')}</button>
-            <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-igs-primary dark:hover:text-amber-400 rounded-full transition-colors">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
+            <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-igs-primary dark:hover:text-amber-400 rounded-full transition-colors hidden sm:block">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
             <NotificationBell hubId={hubId} />
             
-            <div className="hidden xl:flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-slate-800 gap-1 ml-2">
+            {/* BOTÕES DESKTOP */}
+            <div className="hidden md:flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-slate-800 gap-1 ml-2 shrink-0">
               <button onClick={() => setCurrentView('kanban')} className={`${btnViewClass} ${currentView === 'kanban' ? 'bg-white dark:bg-slate-700 text-igs-primary dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><Kanban size={16} /> {t(language, 'kanban')}</button>
               <button onClick={() => setCurrentView('planilha')} className={`${btnViewClass} ${currentView === 'planilha' ? 'bg-white dark:bg-slate-700 text-igs-primary dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><Table size={16} /> {t(language, 'spreadsheet')}</button>
               <button onClick={() => setCurrentView('historico')} className={`${btnViewClass} ${currentView === 'historico' ? 'bg-white dark:bg-slate-700 text-igs-primary dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><History size={16} /> {t(language, 'history')}</button>
             </div>
+
+            {/* BOTÃO MOBILE (Sequencial) */}
+            <div className="flex md:hidden ml-1 shrink-0">
+              <button onClick={handleCycleView} className="p-2.5 bg-slate-100 dark:bg-slate-900/50 text-igs-primary dark:text-white rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors flex items-center justify-center font-bold">
+                {currentView === 'kanban' && <Kanban size={18} />}
+                {currentView === 'planilha' && <Table size={18} />}
+                {currentView === 'historico' && <History size={18} />}
+              </button>
+            </div>
+
           </div>
         </header>
 
@@ -442,8 +460,9 @@ export default function HubView() {
             </div>
           )}
 
-          <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
-            <div className={`p-4 md:p-8 min-h-full flex flex-col ${currentView === 'kanban' ? 'min-w-max' : ''}`}>
+          {/* O container precisa permitir o snap no Kanban, então não escondemos o overflow horizontal aqui */}
+          <div className={`flex-1 overflow-y-auto ${currentView === 'kanban' ? '' : 'overflow-x-auto custom-scrollbar'}`}>
+            <div className={`p-4 md:p-8 min-h-full flex flex-col ${currentView === 'kanban' ? 'h-full !p-0' : 'min-w-max'}`}>
               {currentView === 'kanban' && (
                 <KanbanBoard 
                   hubId={hubId} quadros={quadros} cards={activeCards} 
