@@ -22,7 +22,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
   const [showSearch, setShowSearch] = useState({});
   const [colorPickerOpen, setColorPickerOpen] = useState(null);
 
-  // Estados para o Pop-up inteligente
   const [focusedCardId, setFocusedCardId] = useState(null);
   const [tooltipPos, setTooltipPos] = useState('bottom'); 
 
@@ -150,15 +149,12 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch (error) { console.error(error); }
   };
 
-  // NOVA INTELIGÊNCIA ESPACIAL PARA O POP-UP
   const handleMouseEnter = (e, cardId, hasStatusApp) => {
     if (!FEATURE_FLAG_BLUR_EFFECT || !hasStatusApp) return;
     
-    // Obtém as coordenadas do card na tela
     const rect = e.currentTarget.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     
-    // Se tiver menos de 180px em baixo, abre o balão pra CIMA. Se não, abre pra BAIXO.
     setTooltipPos(spaceBelow < 180 ? 'top' : 'bottom');
     setFocusedCardId(cardId); 
   };
@@ -191,8 +187,8 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
   return (
     <>
       <DragDropContext onDragEnd={onDragEnd}>
-        {/* SCROLL HORIZONTAL COM EFEITO SNAP PARA O MOBILE */}
-        <div className="flex gap-4 sm:gap-6 items-start h-full overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-2 sm:px-0 w-full custom-scrollbar">
+        {/* CORREÇÃO DO ESPAÇAMENTO LATERAL: Adicionado px-6 lg:px-8 para criar o recuo global no Kanban */}
+        <div className="flex gap-4 sm:gap-6 items-start h-full overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-6 lg:px-8 w-full custom-scrollbar">
           
           <AnimatePresence>
             {quadros.map((quadro) => {
@@ -209,7 +205,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
               }
 
               const boardTheme = quadro.color || BOARD_COLORS[0].value;
-              // Verifica se alguma carta desta coluna tem o foco, para elevar a coluna inteira acima do overlay de blur
               const isColFocused = quadroCards.some(c => c.id === focusedCardId);
 
               return (
@@ -217,7 +212,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                   layout
                   initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.9 }}
                   key={quadro.id} 
-                  /* ESTILIZAÇÃO DO SWIPE: w-[88vw] no mobile obriga o usuário a ver 1 coluna por vez, snap-center centraliza */
                   className={`flex flex-col shrink-0 min-w-[88vw] sm:min-w-[320px] w-[88vw] sm:w-[320px] snap-center ${isColFocused ? 'relative z-[120]' : 'z-10'}`}
                 >
                   <div className={`p-4 rounded-t-2xl border-b border-slate-200 dark:border-slate-800 border-t-4 shadow-sm flex flex-col gap-2 relative transition-colors ${boardTheme}`}>
@@ -311,13 +305,11 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                       style={{ ...provided.draggableProps.style }}
                                     >
 
-                                      {/* BALÃO FLUTUANTE DE STATUS INTELIGENTE */}
+                                      {/* BALÃO FLUTUANTE DE STATUS */}
                                       {isFocused && hasStatusApp && (
                                         <div className={`absolute z-[160] left-1/2 -translate-x-1/2 w-64 p-4 bg-slate-900 dark:bg-slate-950 rounded-2xl shadow-2xl shadow-slate-900/50 dark:shadow-black/80 border border-slate-700 dark:border-slate-800 pointer-events-none animate-in fade-in zoom-in-95 duration-200 ${
                                           tooltipPos === 'top' ? 'bottom-[calc(100%+16px)]' : 'top-[calc(100%+16px)]'
                                         }`}>
-                                          
-                                          {/* Setinha apontando para o Card respeitando a direção */}
                                           <div className={`absolute left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 dark:bg-slate-950 border-slate-700 dark:border-slate-800 rotate-45 ${
                                             tooltipPos === 'top' ? '-bottom-2 border-b border-r' : '-top-2 border-t border-l'
                                           }`}></div>
@@ -339,7 +331,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                       )}
 
                                       <div className="flex items-start justify-between gap-2 mb-2">
-                                        
                                         <div className="flex-1">
                                           {cardData?.envioPrioritario && (
                                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-900/60 text-[8px] font-bold tracking-widest text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 mb-2">
@@ -390,9 +381,19 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                         </div>
                                       )}
                                       
+                                      {/* LINHA INFERIOR (Status, Categoria, e o Novo Indicador) */}
                                       <div className="flex justify-between items-center mt-3 gap-2 flex-wrap">
-                                        <StatusBadge status={card.status} />
-                                        {categoria && categoria !== 'Default' && <CategoryBadge categoryLabel={categoria} />}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <StatusBadge status={card.status} />
+                                          {categoria && categoria !== 'Default' && <CategoryBadge categoryLabel={categoria} />}
+                                          
+                                          {/* NOVO: Ícone indicador de Status da Aplicação */}
+                                          {hasStatusApp && (
+                                            <span className="flex items-center justify-center w-6 h-5 rounded-md border border-purple-200 dark:border-purple-900/50 text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 shadow-sm" title="Status da Aplicação disponível (Passe o mouse)">
+                                              <TextCursorInput size={12}/>
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
 
                                       <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-50 dark:border-slate-800/50">
