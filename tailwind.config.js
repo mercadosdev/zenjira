@@ -13,15 +13,14 @@ export default {
         sans: ['"Roboto"', 'sans-serif'],
       },
       colors: {
-        // Mágica: Transforma todos os "slate" do projeto em cinzas neutros profissionais
-        slate: colors.neutral, 
+        slate: colors.slate,
         igs: {
-          dark: '#000000', // Preto absoluto no fundo geral
+          dark: '#0f172a', // Fundo principal: slate-900
           primary: 'rgb(var(--color-primary) / <alpha-value>)',
           accent: 'rgb(var(--color-accent) / <alpha-value>)',
-          bg: '#ffffff', 
-          panel: '#171717', // Cinza muito escuro para os cards e painéis
-          panelDark: '#0a0a0a', // Quase preto para a barra lateral
+          bg: '#f8fafc', // Modo claro: slate-50
+          panel: '#1e293b', // Fundo de cards/modais: slate-800
+          panelDark: '#020617', // Sidebar: slate-950
         }
       }
     },

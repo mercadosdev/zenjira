@@ -15,7 +15,7 @@ export default function QuickAddModal({ hubId, quadros, onClose }) {
 
   const [nome, setNome] = useState('');
   const [quadroId, setQuadroId] = useState('');
-  const [categoria, setCategoria] = useState('Default'); // NOVO ESTADO
+  const [categoria, setCategoria] = useState('Default'); 
   const [responsavel, setResponsavel] = useState('');
   const [comentarios, setComentarios] = useState('');
   const [zendesk, setZendesk] = useState('');
@@ -41,8 +41,9 @@ export default function QuickAddModal({ hubId, quadros, onClose }) {
     const encryptedContent = encryptData(cardDataPayload, activeHubKey);
 
     try {
+      // NOVO: Adicionado campo order com Date.now() para forçar a tarefa pro final
       await addDoc(collection(db, `hubs/${hubId}/cards`), { 
-        quadroId, status: "Na fila", content: encryptedContent, createdAt: serverTimestamp(), updatedAt: serverTimestamp() 
+        quadroId, status: "Na fila", order: Date.now(), content: encryptedContent, createdAt: serverTimestamp(), updatedAt: serverTimestamp() 
       });
       await logNotification(hubId, user?.displayName, `Criou rapidamente a tarefa: "${nome}"`, 'success');
       onClose();
@@ -85,7 +86,6 @@ export default function QuickAddModal({ hubId, quadros, onClose }) {
               )}
             </div>
 
-            {/* SELETOR DE CATEGORIA */}
             <div className="z-[70] relative">
               <CustomSelect value={categoria} onChange={setCategoria} options={CATEGORIAS.map(c => ({value: c.label, label: c.label}))} colorMap="category" />
             </div>

@@ -35,7 +35,7 @@ export default function HubView() {
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // NOVO ESTADO
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
   
   const [isClientEditor, setIsClientEditor] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -47,7 +47,6 @@ export default function HubView() {
 
   const isIgs = userRole === 'igs';
 
-  // Força abrir a sidebar em telas menores para não quebrar o layout mobile
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 1024) setIsSidebarCollapsed(false);
@@ -137,9 +136,15 @@ export default function HubView() {
 
   const processedCards = useMemo(() => {
     if (!activeHubKey) return [];
+    
+    // NOVA ORDENAÇÃO BASE: Ordena todos os cards pelo campo "order"
     let cardsData = rawCards.map(card => {
       const decrypted = decryptData(card.content, activeHubKey);
       return { ...card, data: decrypted };
+    }).sort((a, b) => {
+      const orderA = a.order ?? (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0);
+      const orderB = b.order ?? (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);
+      return orderA - orderB;
     });
 
     if (searchTerm && currentView !== 'kanban') { 
@@ -294,7 +299,6 @@ export default function HubView() {
         />
       )}
 
-      {/* SIDEBAR COM LÓGICA DE COLAPSO */}
       <aside className={`fixed inset-y-0 left-0 z-30 transform transition-all duration-300 lg:relative lg:translate-x-0 bg-white dark:bg-igs-panelDark flex flex-col flex-shrink-0 shadow-2xl lg:shadow-lg border-r border-slate-200 dark:border-slate-800/50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}`}>
         
         <div className={`p-6 pb-2 flex ${isSidebarCollapsed ? 'flex-col gap-4' : 'justify-between'} items-center`}>
@@ -311,7 +315,6 @@ export default function HubView() {
             <FolderKanban className="text-igs-primary shrink-0" size={28} />
           )}
 
-          {/* Botão de Colapso (Apenas Desktop) */}
           <button 
             className="hidden lg:flex p-1.5 text-slate-400 hover:text-igs-primary rounded-xl transition-colors bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800" 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -352,7 +355,6 @@ export default function HubView() {
           })}
         </nav>
         
-        {/* COMPARTILHAR ID */}
         <div className={`mx-3 mb-4 transition-all ${isSidebarCollapsed ? 'p-2 flex justify-center bg-transparent' : 'p-3 bg-slate-50 dark:bg-slate-800/50 shadow-inner'} rounded-xl border border-slate-200 dark:border-slate-700`}>
           {isSidebarCollapsed ? (
             <button onClick={handleCopyId} className="text-slate-400 hover:text-igs-primary transition-colors flex items-center justify-center h-8" title={t(language, 'copyId')}>
@@ -378,7 +380,6 @@ export default function HubView() {
           )}
         </div>
 
-        {/* VOLTAR PARA HOME */}
         <div className={`p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 transition-colors flex ${isSidebarCollapsed ? 'justify-center' : ''}`}>
           <button onClick={() => { clearActiveHub(); navigate('/hubs'); }} title={isSidebarCollapsed ? t(language, 'backToHome') : undefined} className={`py-3 ${isSidebarCollapsed ? 'px-3 w-auto' : 'px-4 w-full'} bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/90 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-white rounded-xl transition-all flex items-center justify-center gap-2 font-medium text-sm border border-slate-200 hover:border-red-200 dark:border-slate-700 dark:hover:border-transparent shadow-sm`}>
             <Home size={18} className="shrink-0" /> {!isSidebarCollapsed && <span className="truncate">{t(language, 'backToHome')}</span>}
@@ -467,17 +468,14 @@ export default function HubView() {
           </div>
         </header>
 
-        {/* CONTÊINER PRINCIPAL REORGANIZADO PARA SCROLL PERFEITO */}
         <main className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-transparent">
           
-          {/* BARRA DE FILTROS FORA DO SCROLL DE CONTEÚDO */}
           {currentView !== 'kanban' && (
             <div className="p-4 md:px-8 md:pt-6 pb-0 shrink-0">
               <FilterBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} filters={filters} setFilters={setFilters} quadros={quadros} />
             </div>
           )}
 
-          {/* ÁREA DE SCROLL (KANBAN / PLANILHA) */}
           <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
             <div className={`p-4 md:p-8 min-h-full flex flex-col ${currentView === 'kanban' ? 'min-w-max' : ''}`}>
               

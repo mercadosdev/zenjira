@@ -9,7 +9,6 @@ import { logNotification } from './NotificationBell';
 import { X, FileText, UserCircle, Tag, Clock, AlertTriangle, Settings, Box, LayoutList, ExternalLink, Edit3, AlignLeft, CheckSquare, Plus, Trash2, TextCursorInput } from 'lucide-react';
 import { t } from '../utils/i18n';
 
-// Custom UI
 import { CustomSelect, CustomDatePicker, StatusBadge, CategoryBadge } from './CustomUI';
 import { STATUS_OPTIONS, COMPLEXIDADE_OPTIONS, MER_PRIORITIES, CATEGORIAS } from '../utils/constants';
 
@@ -94,7 +93,6 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
     setLoading(true);
 
-    // NOVA LÓGICA: Verifica se o statusApp mudou para atualizar o timestamp
     let currentStatusAppUpdatedAt = card?.data?.statusAppUpdatedAt || null;
     if (statusApp !== (card?.data?.statusApp || '')) {
       currentStatusAppUpdatedAt = new Date().toISOString();
@@ -122,7 +120,8 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
         await updateDoc(cardRef, { status, content: encryptedContent, updatedAt: serverTimestamp() });
         await logNotification(hubId, user?.displayName, `Atualizou a tarefa: "${nome}"`, 'info');
       } else if (mode === 'create') {
-        await addDoc(collection(db, `hubs/${hubId}/cards`), { quadroId, status, content: encryptedContent, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        // NOVO: Adicionado campo order com Date.now() para forçar a tarefa pro final da fila
+        await addDoc(collection(db, `hubs/${hubId}/cards`), { quadroId, status, order: Date.now(), content: encryptedContent, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
         await logNotification(hubId, user?.displayName, `Criou a tarefa: "${nome}"`, 'success');
       }
       onClose();
@@ -193,7 +192,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
           
           <div className="space-y-6 max-h-[70vh] overflow-y-auto px-2 -mx-2 custom-scrollbar">
             
-            {/* -------------------- MODO VIEW -------------------- */}
+            {/* MODO VIEW */}
             {isView ? (
               <div className="space-y-6">
 
@@ -214,7 +213,6 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   </div>
                 )}
                 
-                {/* SUBTAREFAS VIEW */}
                 {(subtasks.length > 0) && (
                   <div className="bg-slate-50 dark:bg-slate-900/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/50">
                     <div className="flex justify-between items-center mb-3">
@@ -290,7 +288,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
               </div>
             ) : (
 
-              /* -------------------- MODO EDIT/CREATE -------------------- */
+              /* MODO EDIT/CREATE */
               <div className="space-y-5 pb-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[80] relative">
                   <div>

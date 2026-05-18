@@ -1,17 +1,16 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { logNotification } from './NotificationBell';
-import { Plus, Edit2, Trash2, Search, X, GripVertical, Palette, TextCursorInput } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, GripVertical, Palette, TextCursorInput, Copy, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BOARD_COLORS } from '../utils/constants';
 import { t } from '../utils/i18n';
 import { StatusBadge, CategoryBadge } from './CustomUI';
 
-// FEATURE FLAG: Mude para false para desligar o efeito de Blur global e o Pop-up caso haja problemas de performance.
 const FEATURE_FLAG_BLUR_EFFECT = true;
 
 export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCard, onRenameQuadro, onDeleteQuadro, isClientEditor }) {
@@ -23,8 +22,10 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
   const [showSearch, setShowSearch] = useState({});
   const [colorPickerOpen, setColorPickerOpen] = useState(null);
 
-  // ESTADO PARA SABER QUAL CARD ESTÁ COM FOCO (HOVER)
   const [focusedCardId, setFocusedCardId] = useState(null);
+  
+  // NOVO: Estado para gerenciar a ação do Drag & Drop entre colunas diferentes
+  const [pendingDrop, setPendingDrop] = useState(null);
 
   const handleSearchChange = (quadroId, value) => setColSearch(prev => ({ ...prev, [quadroId]: value }));
   const toggleSearch = (quadroId) => {
@@ -39,32 +40,87 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch (e) { console.error(e); }
   };
 
+  // NOVA LÓGICA DE DRAG & DROP E ORDENAÇÃO
   const onDragEnd = async (result) => {
     if (!canEdit) return; 
 
     const { source, destination, draggableId } = result;
     if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-    try {
-      const cardRef = doc(db, `hubs/${hubId}/cards`, draggableId);
-      await updateDoc(cardRef, { quadroId: destination.droppableId, updatedAt: new Date() });
-
-      const movedCard = cards.find(c => c.id === draggableId);
-      const destQuadro = quadros.find(q => q.id === destination.droppableId);
-      
-      if (movedCard && destQuadro) {
-        const cardData = movedCard.data || decryptData(movedCard.content, activeHubKey); 
-        const taskName = cardData?.nome || 'Tarefa Oculta';
-        await logNotification(hubId, user?.displayName, `Moveu a tarefa "${taskName}" para "${destQuadro.name}"`, 'info');
-      }
-    } catch (error) { console.error("Erro ao mover card:", error); }
+    if (source.droppableId === destination.droppableId) {
+      if (source.index === destination.index) return;
+      // Reordenação na MESMA coluna
+      handleReorder(source, destination, draggableId);
+    } else {
+      // Movendo para OUTRA coluna (Abre o Modal)
+      setPendingDrop(result);
+    }
   };
 
-  // NOVA LÓGICA: Blur imediato apenas se houver status.
+  const handleReorder = async (source, destination, draggableId) => {
+    const colCards = cards.filter(c => c.quadroId === destination.droppableId);
+    const newColCards = Array.from(colCards);
+    const [moved] = newColCards.splice(source.index, 1);
+    newColCards.splice(destination.index, 0, moved);
+
+    // Calcula a nova ordem (metade do caminho entre o card anterior e o próximo)
+    const prev = destination.index > 0 ? newColCards[destination.index - 1] : null;
+    const next = destination.index < newColCards.length - 1 ? newColCards[destination.index + 1] : null;
+    const prevOrder = prev?.order ?? 0;
+    const nextOrder = next?.order ?? (prevOrder + 100000);
+    const newOrder = (prevOrder + nextOrder) / 2;
+
+    try {
+      await updateDoc(doc(db, `hubs/${hubId}/cards`, draggableId), { order: newOrder, updatedAt: new Date() });
+    } catch(e) { console.error(e); }
+  };
+
+  const handleConfirmDrop = async (action) => {
+    if (!pendingDrop) return;
+    const { source, destination, draggableId } = pendingDrop;
+    setPendingDrop(null);
+
+    const destCards = cards.filter(c => c.quadroId === destination.droppableId);
+    const destQuadro = quadros.find(q => q.id === destination.droppableId);
+    const cardToMove = cards.find(c => c.id === draggableId);
+    if (!cardToMove || !destQuadro) return;
+
+    // Calcula a ordem de chegada
+    const prev = destination.index > 0 ? destCards[destination.index - 1] : null;
+    const next = destination.index < destCards.length ? destCards[destination.index] : null;
+    const prevOrder = prev?.order ?? 0;
+    const nextOrder = next?.order ?? (prevOrder + 100000);
+    const newOrder = (prevOrder + nextOrder) / 2;
+
+    const cardData = decryptData(cardToMove.content, activeHubKey);
+    const taskName = cardData?.nome || 'Tarefa';
+
+    try {
+      if (action === 'move') {
+        await updateDoc(doc(db, `hubs/${hubId}/cards`, draggableId), {
+          quadroId: destination.droppableId,
+          order: newOrder,
+          updatedAt: new Date()
+        });
+        await logNotification(hubId, user?.displayName, `Moveu a tarefa "${taskName}" para "${destQuadro.name}"`, 'info');
+      } else if (action === 'copy') {
+        // Clona a tarefa com um novo ID mantendo os dados originais
+        await addDoc(collection(db, `hubs/${hubId}/cards`), {
+          quadroId: destination.droppableId,
+          status: cardToMove.status,
+          order: newOrder,
+          content: cardToMove.content,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        await logNotification(hubId, user?.displayName, `Copiou a tarefa "${taskName}" para "${destQuadro.name}"`, 'success');
+      }
+    } catch (error) { console.error(error); }
+  };
+
   const handleMouseEnter = (cardId, hasStatusApp) => {
     if (!FEATURE_FLAG_BLUR_EFFECT || !hasStatusApp) return;
-    setFocusedCardId(cardId);
+    setFocusedCardId(cardId); 
   };
 
   const handleMouseLeave = () => {
@@ -171,7 +227,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                             return (
                               <Draggable key={card.id} draggableId={card.id} index={index} isDragDisabled={!canEdit}>
                                 {(provided, snapshot) => {
-                                  // Se começar a arrastar, desliga o foco imediatamente
                                   if (snapshot.isDragging && isFocused) handleMouseLeave();
 
                                   return (
@@ -187,10 +242,8 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                       style={{ ...provided.draggableProps.style }}
                                     >
 
-                                      {/* BALÃO FLUTUANTE AJUSTADO PARA BAIXO (Para evitar cortes no topo) */}
                                       {isFocused && hasStatusApp && (
                                         <div className="absolute z-[120] top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-64 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
-                                          {/* Triângulo (Seta apontando para cima) */}
                                           <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white dark:bg-slate-800 border-t border-l border-slate-200 dark:border-slate-700 rotate-45"></div>
                                           
                                           <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-igs-primary tracking-wider mb-2">
@@ -283,7 +336,40 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
         </div>
       </DragDropContext>
 
-      {/* OVERLAY DE BLUR GLOBAL (Imediato) */}
+      {/* MODAL DE CÓPIA/MOVER (Ativado ao trocar um card de quadro) */}
+      <AnimatePresence>
+        {pendingDrop && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-igs-panel p-6 rounded-3xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700 text-center"
+            >
+              <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ArrowRight size={32} />
+              </div>
+              <h3 className="text-xl font-bold mb-2 text-slate-800 dark:text-white">Ação da Tarefa</h3>
+              <p className="text-sm text-slate-500 mb-6">Você arrastou a tarefa para outro quadro. Deseja movê-la ou criar uma cópia?</p>
+              
+              <div className="flex flex-col gap-3">
+                <button onClick={() => handleConfirmDrop('move')} className="w-full py-3 bg-igs-primary hover:bg-igs-accent text-white font-bold rounded-xl transition-colors">
+                  Mover Tarefa
+                </button>
+                <button onClick={() => handleConfirmDrop('copy')} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                  <Copy size={18} /> Copiar Tarefa
+                </button>
+                <button onClick={() => setPendingDrop(null)} className="w-full py-3 mt-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold rounded-xl transition-colors">
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* OVERLAY DE BLUR GLOBAL */}
       {FEATURE_FLAG_BLUR_EFFECT && (
         <AnimatePresence>
           {focusedCardId && (
