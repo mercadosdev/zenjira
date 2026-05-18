@@ -7,18 +7,65 @@ import { db } from '../config/firebase';
 import { encryptData } from '../utils/crypto';
 import { useParams } from 'react-router-dom';
 import { logNotification } from './NotificationBell';
+import { t } from '../utils/i18n';
 
 import { CustomSelect, CustomDatePicker, StatusBadge, CategoryBadge } from './CustomUI';
 import { STATUS_OPTIONS, COMPLEXIDADE_OPTIONS, MER_PRIORITIES, CATEGORIAS } from '../utils/constants';
 
+// Configuração padrão das colunas
+const DEFAULT_COLUMNS = [
+  { id: 'nome', label: 'Tarefa', minWidth: 'min-w-[200px]', isIgs: false },
+  { id: 'status', label: 'Status', minWidth: 'min-w-[150px]', isIgs: false },
+  { id: 'categoria', label: 'Categoria', minWidth: 'min-w-[150px]', isIgs: false },
+  { id: 'quadroId', label: 'Quadro', minWidth: 'min-w-[150px]', isIgs: false, hideInHistory: true },
+  { id: 'responsavel', label: 'Responsável', minWidth: 'min-w-[150px]', isIgs: false },
+  { id: 'zendesk', label: 'Zendesk', minWidth: '', isIgs: false },
+  { id: 'prioridade', label: 'Prioridade', minWidth: '', isIgs: true },
+  { id: 'complexidade', label: 'Complexidade', minWidth: '', isIgs: true },
+  { id: 'jira', label: 'Jira', minWidth: '', isIgs: true },
+  { id: 'previsaoEntrega', label: 'Previsão', minWidth: '', isIgs: false }
+];
+
 export default function SpreadsheetView({ cards, quadros, isHistory = false, onViewCard, isClientEditor }) {
   const { hubId } = useParams();
-  const { user, userRole, activeHubKey, igsUsers } = useAppStore();
+  const { user, userRole, activeHubKey, igsUsers, language } = useAppStore();
   const isIgs = userRole === 'igs';
   const canEditInline = !isHistory && (isIgs || isClientEditor);
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
   const [editState, setEditState] = useState({ cardId: null, field: null, value: '' });
+
+  // ESTADO DAS COLUNAS (Permite a reordenação)
+  const [columns, setColumns] = useState(DEFAULT_COLUMNS);
+  const [draggedColIndex, setDraggedColIndex] = useState(null);
+
+  // LOGICA DO DRAG & DROP HTML5
+  const handleDragStart = (e, index) => {
+    setDraggedColIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault(); 
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedColIndex === null || draggedColIndex === targetIndex) return;
+
+    const newCols = [...columns];
+    const [removed] = newCols.splice(draggedColIndex, 1);
+    newCols.splice(targetIndex, 0, removed);
+    setColumns(newCols);
+    setDraggedColIndex(null);
+  };
+
+  // Filtrando colunas baseado no tipo de usuário e histórico
+  const visibleColumns = columns.filter(col => {
+    if (col.isIgs && !isIgs) return false;
+    if (col.hideInHistory && isHistory) return false;
+    return true;
+  });
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -140,6 +187,22 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
     );
   };
 
+  const renderCellContent = (card, colId) => {
+    switch (colId) {
+      case 'nome': return <span className="font-semibold">{renderCell(card, 'nome', card.data?.nome)}</span>;
+      case 'status': return renderCell(card, 'status', card.status, 'select', STATUS_OPTIONS);
+      case 'categoria': return renderCell(card, 'categoria', card.data?.categoria || 'Default', 'select', CATEGORIAS.map(c => ({value: c.label, label: c.label})));
+      case 'quadroId': return renderCell(card, 'quadroId', getQuadroName(card.quadroId), 'select', quadros.map(q => ({ value: q.id, label: q.name })));
+      case 'responsavel': return renderCell(card, 'responsavel', card.data?.responsavel, 'select', igsUsers.map(u => ({ value: u.name, label: u.name })));
+      case 'zendesk': return renderCell(card, 'zendesk', card.data?.zendesk);
+      case 'prioridade': return renderCell(card, 'prioridade', card.data?.prioridade, 'select', MER_PRIORITIES);
+      case 'complexidade': return renderCell(card, 'complexidade', card.data?.complexidade, 'select', COMPLEXIDADE_OPTIONS);
+      case 'jira': return renderCell(card, 'jira', card.data?.jira);
+      case 'previsaoEntrega': return renderCell(card, 'previsaoEntrega', card.data?.previsaoEntrega, 'date');
+      default: return '-';
+    }
+  };
+
   if (sortedCards.length === 0) {
     return (
       <div className="bg-white dark:bg-igs-panel p-8 rounded-3xl border border-slate-200 dark:border-slate-700 text-center text-slate-500 dark:text-slate-400 font-medium">
@@ -148,7 +211,7 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
     );
   }
 
-  const thClass = "p-4 text-left font-bold text-xs uppercase tracking-widest text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap";
+  const thClass = "p-4 text-left font-bold text-xs uppercase tracking-widest text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 whitespace-nowrap transition-colors";
   const tdClass = "p-3 text-sm text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/50 align-middle";
 
   return (
@@ -156,22 +219,24 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
       <table className="w-full border-collapse">
         <thead className="bg-slate-50 dark:bg-slate-900/50">
           <tr>
-            <th className={`${thClass} w-10 text-center`}>Ver</th>
-            <th onClick={() => requestSort('nome')} className={`${thClass} min-w-[200px]`}>Tarefa <SortIcon columnKey="nome" /></th>
-            <th onClick={() => requestSort('status')} className={`${thClass} min-w-[150px]`}>Status <SortIcon columnKey="status" /></th>
-            <th onClick={() => requestSort('categoria')} className={`${thClass} min-w-[150px]`}>Categoria <SortIcon columnKey="categoria" /></th>
-            {!isHistory && <th onClick={() => requestSort('quadroId')} className={`${thClass} min-w-[150px]`}>Quadro <SortIcon columnKey="quadroId" /></th>}
-            <th onClick={() => requestSort('responsavel')} className={`${thClass} min-w-[150px]`}>Responsável <SortIcon columnKey="responsavel" /></th>
-            <th onClick={() => requestSort('zendesk')} className={thClass}>Zendesk <SortIcon columnKey="zendesk" /></th>
+            <th className={`${thClass} w-10 text-center`}>{t(language, 'Ver')}</th>
             
-            {isIgs && (
-              <>
-                <th onClick={() => requestSort('prioridade')} className={thClass}>Prioridade <SortIcon columnKey="prioridade" /></th>
-                <th onClick={() => requestSort('complexidade')} className={thClass}>Complex. <SortIcon columnKey="complexidade" /></th>
-                <th onClick={() => requestSort('jira')} className={thClass}>Jira <SortIcon columnKey="jira" /></th>
-              </>
-            )}
-            <th onClick={() => requestSort('previsaoEntrega')} className={thClass}>Previsão <SortIcon columnKey="previsaoEntrega" /></th>
+            {/* RENDERIZAÇÃO DAS COLUNAS DINÂMICAS COM DRAG & DROP */}
+            {visibleColumns.map((col, idx) => (
+              <th 
+                key={col.id} 
+                draggable
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, idx)}
+                className={`${thClass} ${col.minWidth} cursor-grab active:cursor-grabbing hover:bg-slate-200 dark:hover:bg-slate-700/80`}
+                title="Arraste para reordenar"
+              >
+                <div className="flex items-center gap-1 w-full" onClick={() => requestSort(col.id)}>
+                  {t(language, col.label)} <SortIcon columnKey={col.id} />
+                </div>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -180,7 +245,6 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
               <motion.tr 
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: idx * 0.01 }}
                 key={card.id} 
-                // EFEITO ZEBRA ADICIONADO AQUI: Cor de fundo varia entre par e ímpar
                 className={`transition-colors group hover:bg-slate-100 dark:hover:bg-slate-700/50 ${idx % 2 === 0 ? 'bg-white dark:bg-transparent' : 'bg-slate-50 dark:bg-slate-800/30'}`}
               >
                 <td className="p-3 text-center border-b border-slate-100 dark:border-slate-800/50">
@@ -189,21 +253,12 @@ export default function SpreadsheetView({ cards, quadros, isHistory = false, onV
                   </button>
                 </td>
                 
-                <td className={`${tdClass} font-semibold`}>{renderCell(card, 'nome', card.data?.nome)}</td>
-                <td className={tdClass}>{renderCell(card, 'status', card.status, 'select', STATUS_OPTIONS)}</td>
-                <td className={tdClass}>{renderCell(card, 'categoria', card.data?.categoria || 'Default', 'select', CATEGORIAS.map(c => ({value: c.label, label: c.label})))}</td>
-                {!isHistory && <td className={tdClass}>{renderCell(card, 'quadroId', getQuadroName(card.quadroId), 'select', quadros.map(q => ({ value: q.id, label: q.name })))}</td>}
-                <td className={tdClass}>{renderCell(card, 'responsavel', card.data?.responsavel, 'select', igsUsers.map(u => ({ value: u.name, label: u.name })))}</td>
-                <td className={tdClass}>{renderCell(card, 'zendesk', card.data?.zendesk)}</td>
-                
-                {isIgs && (
-                  <>
-                    <td className={tdClass}>{renderCell(card, 'prioridade', card.data?.prioridade, 'select', MER_PRIORITIES)}</td>
-                    <td className={tdClass}>{renderCell(card, 'complexidade', card.data?.complexidade, 'select', COMPLEXIDADE_OPTIONS)}</td>
-                    <td className={tdClass}>{renderCell(card, 'jira', card.data?.jira)}</td>
-                  </>
-                )}
-                <td className={tdClass}>{renderCell(card, 'previsaoEntrega', card.data?.previsaoEntrega, 'date')}</td>
+                {/* RENDERIZAÇÃO DAS CÉLULAS BASEADA NA ORDEM DINÂMICA */}
+                {visibleColumns.map(col => (
+                  <td key={col.id} className={tdClass}>
+                    {renderCellContent(card, col.id)}
+                  </td>
+                ))}
               </motion.tr>
             ))}
           </AnimatePresence>

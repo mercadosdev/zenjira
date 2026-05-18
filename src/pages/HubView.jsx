@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, addDoc, doc, updateDoc, setDoc, deleteDoc, query, orderBy, getDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, setDoc, deleteDoc, query, orderBy, getDoc, getDocs, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
-import { removeKeyFromVault } from '../utils/keyVault'; 
+import { getKeyFromVault, removeKeyFromVault } from '../utils/keyVault'; 
 import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, User, Menu, X } from 'lucide-react';
 import { t } from '../utils/i18n';
 
@@ -41,7 +41,7 @@ export default function HubView() {
 
   const [currentView, setCurrentView] = useState('kanban');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState({ responsavel: '', prioridade: '', complexidade: '', tipo: '' });
+  const [filters, setFilters] = useState({ responsavel: '', prioridade: '', complexidade: '', tipo: '', quadroId: '' });
   const [copied, setCopied] = useState(false);
 
   const isIgs = userRole === 'igs';
@@ -49,8 +49,13 @@ export default function HubView() {
   useEffect(() => {
     const verifyAccess = async () => {
       if (!activeHub || !activeHubKey) {
+        const vaultKey = getKeyFromVault(user?.uid, hubId);
+        if (!vaultKey) {
+           navigate('/hubs');
+           return;
+        }
         const hubInList = userHubs.find(h => h.id === hubId);
-        if (hubInList) setActiveHub(hubInList);
+        if (hubInList) setActiveHub(hubInList, vaultKey);
         else { navigate('/hubs'); return; }
       }
 
@@ -71,15 +76,11 @@ export default function HubView() {
     verifyAccess();
   }, [activeHub, activeHubKey, hubId, userHubs, setActiveHub, navigate, user, clearActiveHub, isIgs]);
 
-  // CORREÇÃO DO LOOP E VALIDAÇÃO SUAVIZADA
   useEffect(() => {
     if (rawCards.length > 0 && activeHubKey && user && hubId) {
        const testCard = rawCards[0];
        const testDecrypt = decryptData(testCard.content, activeHubKey);
-       
-       // Se o decrypt não retornar um objeto JSON válido, a chave está errada!
        if (!testDecrypt || typeof testDecrypt !== 'object') {
-          alert("⚠️ Chave de Acesso do Hub incorreta! O cofre não pôde ser desencriptado.");
           removeKeyFromVault(user.uid, hubId); 
           clearActiveHub();
           navigate('/hubs');
@@ -150,6 +151,7 @@ export default function HubView() {
       if (filters.prioridade) cardsData = cardsData.filter(c => c.data?.prioridade === filters.prioridade);
       if (filters.complexidade) cardsData = cardsData.filter(c => c.data?.complexidade === filters.complexidade);
       if (filters.tipo) cardsData = cardsData.filter(c => c.data?.troubleshooting?.tipo === filters.tipo);
+      if (filters.quadroId) cardsData = cardsData.filter(c => c.quadroId === filters.quadroId); // NOVO FILTRO AQUI
     }
 
     return cardsData;
@@ -196,28 +198,58 @@ export default function HubView() {
     });
   };
 
-  const switchHub = (hub) => {
+  const switchHub = async (hub) => {
     if (hub.id === hubId) {
       setIsSidebarOpen(false); 
       return;
     }
-    const success = setActiveHub(hub);
-    if (!success) {
+    
+    const vaultKey = getKeyFromVault(user?.uid, hub.id);
+
+    const promptForPassword = () => {
       openDialog({
         type: 'password',
         title: 'Chave E2EE',
-        message: `Insira a chave para aceder a "${hub.name}":`,
-        onConfirm: (key) => {
+        message: `Insira a chave para desencriptar "${hub.name}":`,
+        onConfirm: async (key) => {
           if (key) {
+            const q = query(collection(db, `hubs/${hub.id}/cards`), limit(1));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+               const testCard = snap.docs[0].data();
+               const testDecrypt = decryptData(testCard.content, key);
+               if (!testDecrypt || typeof testDecrypt !== 'object') {
+                  alert("⚠️ Chave incorreta! Tente novamente.");
+                  setTimeout(promptForPassword, 300);
+                  return;
+               }
+            }
             setActiveHub(hub, key);
             navigate(`/hubs/${hub.id}`);
+            setIsSidebarOpen(false);
           }
         }
       });
+    };
+
+    if (vaultKey) {
+       const q = query(collection(db, `hubs/${hub.id}/cards`), limit(1));
+       const snap = await getDocs(q);
+       if (!snap.empty) {
+          const testCard = snap.docs[0].data();
+          const testDecrypt = decryptData(testCard.content, vaultKey);
+          if (!testDecrypt || typeof testDecrypt !== 'object') {
+             removeKeyFromVault(user?.uid, hub.id);
+             promptForPassword();
+             return;
+          }
+       }
+       setActiveHub(hub, vaultKey);
+       navigate(`/hubs/${hub.id}`);
+       setIsSidebarOpen(false);
     } else {
-      navigate(`/hubs/${hub.id}`);
+       promptForPassword();
     }
-    setIsSidebarOpen(false);
   };
 
   const openCreateModal = (quadroId) => setModalConfig({ isOpen: true, mode: 'create', card: null, quadroId });
@@ -379,24 +411,26 @@ export default function HubView() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-x-auto overflow-y-auto p-4 md:p-8 custom-scrollbar relative">
-          {currentView !== 'kanban' && (
-            <div className="mb-6">
-              <FilterBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} filters={filters} setFilters={setFilters} />
-            </div>
-          )}
+        <main className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-transparent">
+          <div className="p-4 md:p-8 min-w-max min-h-full flex flex-col">
+            {currentView !== 'kanban' && (
+              <div className="mb-6">
+                <FilterBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} filters={filters} setFilters={setFilters} quadros={quadros} />
+              </div>
+            )}
 
-          {currentView === 'kanban' && (
-            <KanbanBoard 
-              hubId={hubId} quadros={quadros} cards={activeCards} 
-              onViewCard={openViewModal} onAddCard={openCreateModal}
-              onRenameQuadro={handleQuadroAction} onDeleteQuadro={handleDeleteQuadro}
-              isClientEditor={isClientEditor} 
-            />
-          )}
+            {currentView === 'kanban' && (
+              <KanbanBoard 
+                hubId={hubId} quadros={quadros} cards={activeCards} 
+                onViewCard={openViewModal} onAddCard={openCreateModal}
+                onRenameQuadro={handleQuadroAction} onDeleteQuadro={handleDeleteQuadro}
+                isClientEditor={isClientEditor} 
+              />
+            )}
 
-          {currentView === 'planilha' && <SpreadsheetView cards={activeCards} quadros={quadros} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
-          {currentView === 'historico' && <SpreadsheetView cards={historyCards} quadros={quadros} isHistory={true} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
+            {currentView === 'planilha' && <SpreadsheetView cards={activeCards} quadros={quadros} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
+            {currentView === 'historico' && <SpreadsheetView cards={historyCards} quadros={quadros} isHistory={true} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
+          </div>
         </main>
 
         {modalConfig.isOpen && (

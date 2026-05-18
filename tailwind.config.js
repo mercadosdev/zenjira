@@ -1,3 +1,5 @@
+import colors from 'tailwindcss/colors';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
@@ -8,17 +10,18 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Define a Roboto como fonte padrão
         sans: ['"Roboto"', 'sans-serif'],
       },
       colors: {
+        // Mágica: Transforma todos os "slate" do projeto em cinzas neutros profissionais
+        slate: colors.neutral, 
         igs: {
-          dark: '#020617', 
+          dark: '#000000', // Preto absoluto no fundo geral
           primary: 'rgb(var(--color-primary) / <alpha-value>)',
           accent: 'rgb(var(--color-accent) / <alpha-value>)',
           bg: '#ffffff', 
-          panel: '#1e293b', 
-          panelDark: '#0f172a',
+          panel: '#171717', // Cinza muito escuro para os cards e painéis
+          panelDark: '#0a0a0a', // Quase preto para a barra lateral
         }
       }
     },

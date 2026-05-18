@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, query, orderBy, where, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, where, doc, getDoc, updateDoc, limit } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { useAppStore } from '../store/store';
 import { useNavigate } from 'react-router-dom';
 import { Moon, Sun, Plus, KeyRound, FolderKanban, LogOut, Hash, ArrowRight, Languages } from 'lucide-react';
 import { t } from '../utils/i18n';
-import { GlobalDialogs } from '../components/CustomUI'; // <-- IMPORTADO AQUI
+import { GlobalDialogs } from '../components/CustomUI';
+import { decryptData } from '../utils/crypto';
+import { getKeyFromVault, removeKeyFromVault } from '../utils/keyVault';
 
 export default function Hubs() {
   const [hubs, setHubs] = useState([]);
@@ -66,6 +68,7 @@ export default function Hubs() {
     }
   };
 
+  // VALIDAÇÃO DIRETA ANTES DE ENTRAR NO HUB MANUAL
   const handleJoinHubManual = async () => {
     if (!joinHubId || !joinHubKey) return alert("Insira o ID e a Chave.");
     setLoading(true);
@@ -74,8 +77,19 @@ export default function Hubs() {
       const hubDoc = await getDoc(hubRef);
       
       if (hubDoc.exists()) {
+        const q = query(collection(db, `hubs/${joinHubId}/cards`), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+           const testCard = snap.docs[0].data();
+           const testDecrypt = decryptData(testCard.content, joinHubKey);
+           if (!testDecrypt || typeof testDecrypt !== 'object') {
+              alert("⚠️ Chave E2EE incorreta! Verifique a senha e tente novamente.");
+              setLoading(false);
+              return; 
+           }
+        }
+
         const hubData = { id: hubDoc.id, ...hubDoc.data() };
-        
         const allowed = hubData.allowedUsers || [];
         if (!allowed.includes(user.uid)) {
           await updateDoc(hubRef, { allowedUsers: [...allowed, user.uid] });
@@ -93,23 +107,51 @@ export default function Hubs() {
     }
   };
 
-  const handleEnterHub = (hub) => {
-    const success = setActiveHub(hub);
-    if (!success) {
-      // O MODAL AGORA VAI APARECER NA TELA!
+  // LOOP INFINITO DE SENHA CORRIGIDO AQUI
+  const handleEnterHub = async (hub) => {
+    const vaultKey = getKeyFromVault(user?.uid, hub.id);
+
+    const promptForPassword = () => {
       openDialog({
         type: 'password',
         title: 'Chave E2EE',
         message: `Insira a chave para desencriptar "${hub.name}":`,
-        onConfirm: (key) => {
+        onConfirm: async (key) => {
           if (key) {
+            const q = query(collection(db, `hubs/${hub.id}/cards`), limit(1));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+               const testCard = snap.docs[0].data();
+               const testDecrypt = decryptData(testCard.content, key);
+               if (!testDecrypt || typeof testDecrypt !== 'object') {
+                  alert("⚠️ Chave incorreta! Tente novamente.");
+                  setTimeout(promptForPassword, 300); // REABRE O MODAL SEM CARREGAR A PÁGINA
+                  return;
+               }
+            }
             setActiveHub(hub, key);
             navigate(`/hubs/${hub.id}`);
           }
         }
       });
+    };
+
+    if (vaultKey) {
+       const q = query(collection(db, `hubs/${hub.id}/cards`), limit(1));
+       const snap = await getDocs(q);
+       if (!snap.empty) {
+          const testCard = snap.docs[0].data();
+          const testDecrypt = decryptData(testCard.content, vaultKey);
+          if (!testDecrypt || typeof testDecrypt !== 'object') {
+             removeKeyFromVault(user?.uid, hub.id);
+             promptForPassword();
+             return;
+          }
+       }
+       setActiveHub(hub, vaultKey);
+       navigate(`/hubs/${hub.id}`);
     } else {
-      navigate(`/hubs/${hub.id}`);
+       promptForPassword();
     }
   };
 
@@ -120,7 +162,6 @@ export default function Hubs() {
 
   return (
     <div className="min-h-screen bg-igs-bg dark:bg-igs-dark text-slate-800 dark:text-slate-200 transition-colors duration-300 p-6 md:p-12">
-      {/* RENDERIZANDO O MODAL NA TELA DE HUBS */}
       <GlobalDialogs />
 
       <header className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">

@@ -1,8 +1,9 @@
 import { useAppStore } from '../store/store';
 import { Search, X } from 'lucide-react';
+import { t } from '../utils/i18n';
 
-export default function FilterBar({ searchTerm, setSearchTerm, filters, setFilters }) {
-  const { userRole } = useAppStore();
+export default function FilterBar({ searchTerm, setSearchTerm, filters, setFilters, quadros }) {
+  const { userRole, language } = useAppStore();
   const isIgs = userRole === 'igs';
 
   const handleFilterChange = (e) => {
@@ -27,41 +28,51 @@ export default function FilterBar({ searchTerm, setSearchTerm, filters, setFilte
         />
       </div>
 
+      {/* NOVO: FILTRO DE QUADRO */}
+      {quadros && (
+        <select name="quadroId" value={filters.quadroId || ''} onChange={handleFilterChange} className={inputClass}>
+          <option value="">{t(language, 'Qualquer Quadro')}</option>
+          {quadros.map(q => (
+            <option key={q.id} value={q.id}>{q.name}</option>
+          ))}
+        </select>
+      )}
+
       {/* FILTROS GLOBAIS */}
-      <select name="responsavel" value={filters.responsavel} onChange={handleFilterChange} className={inputClass}>
-        <option value="">Qualquer Responsável</option>
+      <select name="responsavel" value={filters.responsavel || ''} onChange={handleFilterChange} className={inputClass}>
+        <option value="">{t(language, 'Qualquer Responsável')}</option>
       </select>
 
       {/* FILTROS IGS */}
       {isIgs && (
         <>
-          <select name="prioridade" value={filters.prioridade} onChange={handleFilterChange} className={inputClass}>
-            <option value="">Prioridade</option>
-            <option value="Baixa">Baixa</option>
-            <option value="Média">Média</option>
-            <option value="Alta">Alta</option>
+          <select name="prioridade" value={filters.prioridade || ''} onChange={handleFilterChange} className={inputClass}>
+            <option value="">{t(language, 'priority')}</option>
+            <option value="Baixa">{t(language, 'Baixa')}</option>
+            <option value="Média">{t(language, 'Média')}</option>
+            <option value="Alta">{t(language, 'Alta')}</option>
           </select>
 
-          <select name="complexidade" value={filters.complexidade} onChange={handleFilterChange} className={inputClass}>
-            <option value="">Complexidade</option>
-            <option value="Baixa">Baixa</option>
-            <option value="Média">Média</option>
-            <option value="Alta">Alta</option>
+          <select name="complexidade" value={filters.complexidade || ''} onChange={handleFilterChange} className={inputClass}>
+            <option value="">{t(language, 'complexity')}</option>
+            <option value="Baixa">{t(language, 'Baixa')}</option>
+            <option value="Média">{t(language, 'Média')}</option>
+            <option value="Alta">{t(language, 'Alta')}</option>
           </select>
 
-          <select name="tipo" value={filters.tipo} onChange={handleFilterChange} className={inputClass}>
-            <option value="">Tipo</option>
-            <option value="Jogo">Jogo</option>
-            <option value="Servidor">Servidor</option>
+          <select name="tipo" value={filters.tipo || ''} onChange={handleFilterChange} className={inputClass}>
+            <option value="">{t(language, 'type')}</option>
+            <option value="Jogo">{t(language, 'Jogo')}</option>
+            <option value="Servidor">{t(language, 'Servidor')}</option>
           </select>
         </>
       )}
 
       <button 
-        onClick={() => { setSearchTerm(''); setFilters({ responsavel: '', prioridade: '', complexidade: '', tipo: '' }); }}
+        onClick={() => { setSearchTerm(''); setFilters({ responsavel: '', prioridade: '', complexidade: '', tipo: '', quadroId: '' }); }}
         className="px-4 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-colors text-sm font-bold flex items-center gap-2"
       >
-        <X size={16} /> Limpar
+        <X size={16} /> {t(language, 'Limpar')}
       </button>
     </div>
   );

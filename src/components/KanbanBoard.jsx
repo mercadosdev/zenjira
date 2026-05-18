@@ -57,7 +57,8 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex gap-6 overflow-x-auto pb-8 items-start min-h-[65vh]">
+      {/* SCROLL HORIZONTAL REMOVIDO DAQUI - Agora a página principal controla isso! */}
+      <div className="flex gap-6 items-start h-full">
         <AnimatePresence>
           {quadros.map((quadro) => {
             let quadroCards = cards.filter(c => c.quadroId === quadro.id && !['Cancelado', 'Na rua'].includes(c.status));

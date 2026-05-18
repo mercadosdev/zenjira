@@ -8,30 +8,33 @@ import { STATUS_COLORS, CATEGORIAS } from '../utils/constants';
 const IconMap = { Bug, BugOff, Sparkles, HelpCircle, Repeat2, Binary };
 
 export function CategoryBadge({ categoryLabel, className = '' }) {
+  const { language } = useAppStore();
   const cat = CATEGORIAS.find(c => c.label === categoryLabel) || CATEGORIAS[0];
   const IconComponent = IconMap[cat.icon] || Binary;
   
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium tracking-wide ${cat.color} ${className}`} title={cat.label}>
+    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-medium tracking-wide ${cat.color} ${className}`} title={t(language, cat.label)}>
       <IconComponent size={12} />
-      {cat.label}
+      {t(language, cat.label)}
     </span>
   );
 }
 
 export function StatusBadge({ status, className = '' }) {
+  const { language } = useAppStore();
   const colorClass = STATUS_COLORS[status] || STATUS_COLORS["Na fila"];
   const isAnalyzing = status === "Em Análise";
   
   return (
     <span className={`inline-flex items-center justify-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-semibold uppercase tracking-wider ${colorClass} ${className}`}>
       {isAnalyzing && <Activity size={12} className="animate-pulse" />}
-      {status}
+      {t(language, status)}
     </span>
   );
 }
 
 export function CustomSelect({ value, onChange, options, placeholder = "Selecione...", colorMap = null }) {
+  const { language } = useAppStore();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
 
@@ -43,6 +46,7 @@ export function CustomSelect({ value, onChange, options, placeholder = "Selecion
 
   const selectedLabel = options.find(o => (typeof o === 'string' ? o : o.value) === value) || placeholder;
   const isStringLabel = typeof selectedLabel === 'string';
+  const displayLabel = isStringLabel ? selectedLabel : selectedLabel.label;
 
   return (
     <div className="relative w-full" ref={ref}>
@@ -53,7 +57,7 @@ export function CustomSelect({ value, onChange, options, placeholder = "Selecion
         <span className="truncate flex items-center gap-2">
           {colorMap === 'status' && value ? <StatusBadge status={value} /> : 
            colorMap === 'category' && value ? <CategoryBadge categoryLabel={value} /> : 
-           (isStringLabel ? selectedLabel : selectedLabel.label)}
+           t(language, displayLabel)}
         </span>
         <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -73,7 +77,7 @@ export function CustomSelect({ value, onChange, options, placeholder = "Selecion
                   className={`p-2 text-sm rounded-lg cursor-pointer transition-colors flex items-center ${value === val ? 'bg-igs-primary/10 text-igs-primary font-semibold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                 >
                   {colorMap === 'status' ? <StatusBadge status={val} /> : 
-                   colorMap === 'category' ? <CategoryBadge categoryLabel={val} /> : label}
+                   colorMap === 'category' ? <CategoryBadge categoryLabel={val} /> : t(language, label)}
                 </div>
               );
             })}
@@ -85,6 +89,7 @@ export function CustomSelect({ value, onChange, options, placeholder = "Selecion
 }
 
 export function CustomDatePicker({ value, onChange }) {
+  const { language } = useAppStore();
   const [isOpen, setIsOpen] = useState(false);
   const [tempDate, setTempDate] = useState(value || '');
   const ref = useRef(null);
@@ -123,9 +128,9 @@ export function CustomDatePicker({ value, onChange }) {
               className="w-full p-2 mb-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
             />
             <div className="flex justify-between gap-2">
-              <button type="button" onClick={() => { onChange(''); setIsOpen(false); }} className="text-xs text-red-500 font-semibold px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">Limpar</button>
+              <button type="button" onClick={() => { onChange(''); setIsOpen(false); }} className="text-xs text-red-500 font-semibold px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">{t(language, 'Limpar')}</button>
               <div className="flex gap-2">
-                <button type="button" onClick={() => setIsOpen(false)} className="text-xs text-slate-500 font-semibold px-2 py-1">Cancelar</button>
+                <button type="button" onClick={() => setIsOpen(false)} className="text-xs text-slate-500 font-semibold px-2 py-1">{t(language, 'cancel')}</button>
                 <button type="button" onClick={handleConfirm} className="text-xs text-white bg-igs-primary hover:bg-igs-accent font-semibold px-3 py-1 rounded">OK</button>
               </div>
             </div>
@@ -139,7 +144,6 @@ export function CustomDatePicker({ value, onChange }) {
 export function GlobalDialogs() {
   const { dialog, closeDialog, language } = useAppStore();
   
-  // ADICIONADO: Lógica de exibição e tipo do Input
   const isPrompt = dialog?.type === 'prompt' || dialog?.type === 'password';
   const isPassword = dialog?.type === 'password';
   

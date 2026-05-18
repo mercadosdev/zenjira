@@ -8,7 +8,16 @@ export const translations = {
     priority: "Prioridade", complexity: "Complexidade", type: "Tipo", version: "Versão", dangerZone: "Zona de Perigo", deleteHub: "Excluir Hub Permanentemente",
     accessControl: "Controle de Acesso", editPermission: "Permissão de Edição", allowed: "Permitido", blocked: "Bloqueado", editor: "Editor", viewer: "Leitor",
     copyId: "Copiar ID", shareId: "ID do Hub (Compartilhar)", language: "ES", refresh: "Atualizar", subtasks: "Subtarefas", addSubtask: "Adicionar Subtarefa",
-    boardColor: "Cor do Quadro", renameBoard: "Renomear", deleteBoard: "Excluir", selectOption: "Selecione..."
+    boardColor: "Cor do Quadro", renameBoard: "Renomear", deleteBoard: "Excluir", selectOption: "Selecione...",
+    
+    // Status e Categorias
+    "Na fila": "Na fila", "Em Análise": "Em Análise", "Em Desenvolvimento": "Em Desenvolvimento", "Concluído": "Concluído", "Na rua": "Na rua", "Cancelado": "Cancelado",
+    "Bug": "Bug", "Bug Impeditivo": "Bug Impeditivo", "Recurso novo": "Recurso novo", "Dúvida": "Dúvida", "Reentrega": "Reentrega", "Default": "Padrão",
+    "Baixa": "Baixa", "Média": "Média", "Alta": "Alta", "Jogo": "Jogo", "Servidor": "Servidor",
+    
+    // Filtros e Planilha
+    "Qualquer Quadro": "Qualquer Quadro", "Qualquer Responsável": "Qualquer Responsável", "Categoria": "Categoria", "Quadro": "Quadro", "Limpar": "Limpar",
+    "Ver": "Ver", "Tarefa": "Tarefa", "Zendesk": "Zendesk", "Prioridade": "Prioridade", "Jira": "Jira", "Previsão": "Previsão"
   },
   es: {
     myHubs: "Mis Hubs", createHub: "Crear Nuevo Hub", joinHub: "Acceder a Hub Existente", hubName: "Nombre del Hub", accessKey: "Clave de Acceso",
@@ -19,7 +28,16 @@ export const translations = {
     priority: "Prioridad", complexity: "Complejidad", type: "Tipo", version: "Versión", dangerZone: "Zona de Peligro", deleteHub: "Eliminar Hub Permanentemente",
     accessControl: "Control de Acceso", editPermission: "Permiso de Edición", allowed: "Permitido", blocked: "Bloqueado", editor: "Editor", viewer: "Lector",
     copyId: "Copiar ID", shareId: "ID del Hub (Compartir)", language: "PT", refresh: "Actualizar", subtasks: "Subtareas", addSubtask: "Añadir Subtarea",
-    boardColor: "Color del Tablero", renameBoard: "Renombrar", deleteBoard: "Eliminar", selectOption: "Seleccione..."
+    boardColor: "Color del Tablero", renameBoard: "Renombrar", deleteBoard: "Eliminar", selectOption: "Seleccione...",
+    
+    // Status e Categorias Traduzidas
+    "Na fila": "En cola", "Em Análise": "En Análisis", "Em Desenvolvimento": "En Desarrollo", "Concluído": "Completado", "Na rua": "En la calle", "Cancelado": "Cancelado",
+    "Bug": "Bug", "Bug Impeditivo": "Bug Bloqueante", "Recurso novo": "Nueva Función", "Dúvida": "Duda", "Reentrega": "Reentrega", "Default": "Por Defecto",
+    "Baixa": "Baja", "Média": "Media", "Alta": "Alta", "Jogo": "Juego", "Servidor": "Servidor",
+    
+    // Filtros e Planilha Traduzidos
+    "Qualquer Quadro": "Cualquier Tablero", "Qualquer Responsável": "Cualquier Responsable", "Categoria": "Categoría", "Quadro": "Tablero", "Limpar": "Limpiar",
+    "Ver": "Ver", "Tarefa": "Tarea", "Zendesk": "Zendesk", "Prioridade": "Prioridad", "Jira": "Jira", "Previsão": "Previsión"
   }
 };
 export const t = (lang, key) => translations[lang]?.[key] || key;
