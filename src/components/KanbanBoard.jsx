@@ -61,9 +61,10 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch (error) { console.error("Erro ao mover card:", error); }
   };
 
-  const handleMouseEnter = (cardId) => {
-    if (!FEATURE_FLAG_BLUR_EFFECT) return;
-    setFocusedCardId(cardId); // BLUR IMEDIATO! Sem setTimeout.
+  // NOVA LÓGICA: Blur imediato apenas se houver status.
+  const handleMouseEnter = (cardId, hasStatusApp) => {
+    if (!FEATURE_FLAG_BLUR_EFFECT || !hasStatusApp) return;
+    setFocusedCardId(cardId);
   };
 
   const handleMouseLeave = () => {
@@ -165,6 +166,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                             const categoria = cardData?.categoria || 'Default';
 
                             const isFocused = focusedCardId === card.id;
+                            const hasStatusApp = !!cardData?.statusApp;
 
                             return (
                               <Draggable key={card.id} draggableId={card.id} index={index} isDragDisabled={!canEdit}>
@@ -176,7 +178,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                     <div
                                       ref={provided.innerRef} {...provided.draggableProps} 
                                       onClick={() => onViewCard(card)} 
-                                      onMouseEnter={() => handleMouseEnter(card.id)}
+                                      onMouseEnter={() => handleMouseEnter(card.id, hasStatusApp)}
                                       onMouseLeave={handleMouseLeave}
                                       className={`group bg-white dark:bg-igs-panel p-4 mb-3 rounded-2xl border-l-4 cursor-pointer transition-all duration-300 ${leftBorder} ${
                                         snapshot.isDragging ? 'shadow-2xl scale-105 opacity-95 ring-2 ring-igs-primary z-[60]' : 
@@ -185,11 +187,11 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                       style={{ ...provided.draggableProps.style }}
                                     >
 
-                                      {/* BALÃO FLUTUANTE DE STATUS DA APLICAÇÃO (POP-UP ABSOLUTO) */}
-                                      {isFocused && cardData?.statusApp && (
-                                        <div className="absolute z-[120] bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 w-64 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
-                                          {/* Triângulo (Seta para baixo) */}
-                                          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white dark:bg-slate-800 border-b border-r border-slate-200 dark:border-slate-700 rotate-45"></div>
+                                      {/* BALÃO FLUTUANTE AJUSTADO PARA BAIXO (Para evitar cortes no topo) */}
+                                      {isFocused && hasStatusApp && (
+                                        <div className="absolute z-[120] top-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-64 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+                                          {/* Triângulo (Seta apontando para cima) */}
+                                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white dark:bg-slate-800 border-t border-l border-slate-200 dark:border-slate-700 rotate-45"></div>
                                           
                                           <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-igs-primary tracking-wider mb-2">
                                             <TextCursorInput size={12} /> Status da Aplicação
