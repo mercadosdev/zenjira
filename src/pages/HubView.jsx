@@ -5,7 +5,7 @@ import { db } from '../config/firebase';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
 import { getKeyFromVault, removeKeyFromVault } from '../utils/keyVault'; 
-import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, Menu, X, PanelLeftClose, PanelLeftOpen, Home, KeyRound } from 'lucide-react';
+import { FolderKanban, Sun, Moon, Kanban, Table, History, ChevronLeft, Copy, Check, Settings, Languages, RefreshCw, Zap, Users, Menu, X, PanelLeftClose, PanelLeftOpen, Home, KeyRound, LayoutDashboard } from 'lucide-react';
 import { t } from '../utils/i18n';
 
 import CardModal from '../components/CardModal';
@@ -17,6 +17,8 @@ import HubSettingsModal from '../components/HubSettingsModal';
 import QuickAddModal from '../components/QuickAddModal';
 import TeamModal from '../components/TeamModal';
 import { GlobalDialogs, Avatar } from '../components/CustomUI'; 
+// Componente importado na Parte 2:
+import DashboardView from '../components/DashboardView'; 
 
 const TERMINAL_STATUSES = ['Cancelado', 'Na rua'];
 
@@ -40,7 +42,7 @@ export default function HubView() {
   const [isClientEditor, setIsClientEditor] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [currentView, setCurrentView] = useState('kanban');
+  const [currentView, setCurrentView] = useState('kanban'); // kanban, planilha, historico, dashboard
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({ responsavel: '', prioridade: '', complexidade: '', tipo: '', quadroId: '' });
   const [copied, setCopied] = useState(false);
@@ -139,7 +141,8 @@ export default function HubView() {
       return orderA - orderB;
     });
 
-    if (searchTerm && currentView !== 'kanban') { 
+    // MÁGICA DOS FILTROS: Agora funcionam para o Kanban também!
+    if (searchTerm) { 
       const lowerSearch = searchTerm.toLowerCase();
       cardsData = cardsData.filter(card => {
         const matchNome = card.data?.nome?.toLowerCase().includes(lowerSearch);
@@ -153,16 +156,14 @@ export default function HubView() {
       });
     }
 
-    if (currentView !== 'kanban') {
-      if (filters.responsavel) cardsData = cardsData.filter(c => c.data?.responsavel === filters.responsavel);
-      if (filters.prioridade) cardsData = cardsData.filter(c => c.data?.prioridade === filters.prioridade);
-      if (filters.complexidade) cardsData = cardsData.filter(c => c.data?.complexidade === filters.complexidade);
-      if (filters.tipo) cardsData = cardsData.filter(c => c.data?.troubleshooting?.tipo === filters.tipo);
-      if (filters.quadroId) cardsData = cardsData.filter(c => c.quadroId === filters.quadroId); 
-    }
+    if (filters.responsavel) cardsData = cardsData.filter(c => c.data?.responsavel === filters.responsavel);
+    if (filters.prioridade) cardsData = cardsData.filter(c => c.data?.prioridade === filters.prioridade);
+    if (filters.complexidade) cardsData = cardsData.filter(c => c.data?.complexidade === filters.complexidade);
+    if (filters.tipo) cardsData = cardsData.filter(c => c.data?.troubleshooting?.tipo === filters.tipo);
+    if (filters.quadroId) cardsData = cardsData.filter(c => c.quadroId === filters.quadroId); 
 
     return cardsData;
-  }, [rawCards, activeHubKey, searchTerm, filters, isIgs, currentView]);
+  }, [rawCards, activeHubKey, searchTerm, filters, isIgs]);
 
   const activeCards = processedCards.filter(c => !TERMINAL_STATUSES.includes(c.status));
   const historyCards = processedCards.filter(c => TERMINAL_STATUSES.includes(c.status));
@@ -202,6 +203,7 @@ export default function HubView() {
     });
   };
 
+  // TROCA INSTANTÂNEA DE HUBS
   const switchHub = async (hub) => {
     if (hub.id === hubId) {
       setIsSidebarOpen(false); 
@@ -210,49 +212,34 @@ export default function HubView() {
     
     const vaultKey = getKeyFromVault(user?.uid, hub.id);
 
-    const promptForPassword = () => {
-      openDialog({
-        type: 'password',
-        title: 'Chave E2EE',
-        message: `Insira a chave para desencriptar "${hub.name}":`,
-        onConfirm: async (key) => {
-          if (key) {
-            const q = query(collection(db, `hubs/${hub.id}/cards`), limit(1));
-            const snap = await getDocs(q);
-            if (!snap.empty) {
-               const testCard = snap.docs[0].data();
-               const testDecrypt = decryptData(testCard.content, key);
-               if (!testDecrypt || typeof testDecrypt !== 'object') {
-                  alert("⚠️ Chave incorreta! Tente novamente.");
-                  setTimeout(promptForPassword, 300);
-                  return;
-               }
-            }
-            setActiveHub(hub, key);
-            navigate(`/hubs/${hub.id}`);
-            setIsSidebarOpen(false);
-          }
-        }
-      });
-    };
-
     if (vaultKey) {
-       const q = query(collection(db, `hubs/${hub.id}/cards`), limit(1));
-       const snap = await getDocs(q);
-       if (!snap.empty) {
-          const testCard = snap.docs[0].data();
-          const testDecrypt = decryptData(testCard.content, vaultKey);
-          if (!testDecrypt || typeof testDecrypt !== 'object') {
-             removeKeyFromVault(user?.uid, hub.id);
-             promptForPassword();
-             return;
-          }
-       }
        setActiveHub(hub, vaultKey);
        navigate(`/hubs/${hub.id}`);
        setIsSidebarOpen(false);
     } else {
-       promptForPassword();
+       openDialog({
+         type: 'password',
+         title: 'Chave E2EE',
+         message: `Insira a chave para desencriptar "${hub.name}":`,
+         onConfirm: async (key) => {
+           if (key) {
+             const q = query(collection(db, `hubs/${hub.id}/cards`), limit(1));
+             const snap = await getDocs(q);
+             if (!snap.empty) {
+                const testCard = snap.docs[0].data();
+                const testDecrypt = decryptData(testCard.content, key);
+                if (!testDecrypt || typeof testDecrypt !== 'object') {
+                   alert("⚠️ Chave incorreta! Tente novamente.");
+                   setTimeout(() => switchHub(hub), 300); // Tenta novamente reabrindo o dialog
+                   return;
+                }
+             }
+             setActiveHub(hub, key);
+             navigate(`/hubs/${hub.id}`);
+             setIsSidebarOpen(false);
+           }
+         }
+       });
     }
   };
 
@@ -266,10 +253,10 @@ export default function HubView() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Lógica do botão sequencial no Mobile
   const handleCycleView = () => {
     if (currentView === 'kanban') setCurrentView('planilha');
     else if (currentView === 'planilha') setCurrentView('historico');
+    else if (currentView === 'historico') setCurrentView('dashboard');
     else setCurrentView('kanban');
   };
 
@@ -379,7 +366,7 @@ export default function HubView() {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-20 bg-white dark:bg-igs-panel border-b border-slate-200 dark:border-slate-800 px-4 lg:px-6 flex justify-between items-center z-10 shadow-sm transition-colors duration-300 shrink-0">
+        <header className="h-20 bg-white dark:bg-igs-panel border-b border-slate-200 dark:border-slate-800 px-4 lg:px-6 flex justify-between items-center z-40 shadow-sm transition-colors duration-300 shrink-0">
           <div className="flex items-center gap-2 lg:gap-6">
             <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl lg:hidden transition-colors">
               <Menu size={24} />
@@ -434,19 +421,21 @@ export default function HubView() {
             <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-igs-primary dark:hover:text-amber-400 rounded-full transition-colors hidden sm:block">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
             <NotificationBell hubId={hubId} />
             
-            {/* BOTÕES DESKTOP */}
+            {/* BOTÕES DESKTOP - AGORA INCLUI DASHBOARD */}
             <div className="hidden md:flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-slate-800 gap-1 ml-2 shrink-0">
               <button onClick={() => setCurrentView('kanban')} className={`${btnViewClass} ${currentView === 'kanban' ? 'bg-white dark:bg-slate-700 text-igs-primary dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><Kanban size={16} /> {t(language, 'kanban')}</button>
               <button onClick={() => setCurrentView('planilha')} className={`${btnViewClass} ${currentView === 'planilha' ? 'bg-white dark:bg-slate-700 text-igs-primary dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><Table size={16} /> {t(language, 'spreadsheet')}</button>
               <button onClick={() => setCurrentView('historico')} className={`${btnViewClass} ${currentView === 'historico' ? 'bg-white dark:bg-slate-700 text-igs-primary dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><History size={16} /> {t(language, 'history')}</button>
+              <button onClick={() => setCurrentView('dashboard')} className={`${btnViewClass} ${currentView === 'dashboard' ? 'bg-white dark:bg-slate-700 text-igs-primary dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><LayoutDashboard size={16} /> Dash</button>
             </div>
 
-            {/* BOTÃO MOBILE (Sequencial) */}
+            {/* BOTÃO MOBILE (Sequencial) - AGORA INCLUI DASHBOARD */}
             <div className="flex md:hidden ml-1 shrink-0">
               <button onClick={handleCycleView} className="p-2.5 bg-slate-100 dark:bg-slate-900/50 text-igs-primary dark:text-white rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors flex items-center justify-center font-bold">
                 {currentView === 'kanban' && <Kanban size={18} />}
                 {currentView === 'planilha' && <Table size={18} />}
                 {currentView === 'historico' && <History size={18} />}
+                {currentView === 'dashboard' && <LayoutDashboard size={18} />}
               </button>
             </div>
 
@@ -454,13 +443,13 @@ export default function HubView() {
         </header>
 
         <main className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-transparent">
-          {currentView !== 'kanban' && (
+          
+          {currentView !== 'dashboard' && (
             <div className="p-4 md:px-8 md:pt-6 pb-0 shrink-0">
               <FilterBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} filters={filters} setFilters={setFilters} quadros={quadros} />
             </div>
           )}
 
-          {/* O container precisa permitir o snap no Kanban, então não escondemos o overflow horizontal aqui */}
           <div className={`flex-1 overflow-y-auto ${currentView === 'kanban' ? '' : 'overflow-x-auto custom-scrollbar'}`}>
             <div className={`p-4 md:p-8 min-h-full flex flex-col ${currentView === 'kanban' ? 'h-full !p-0' : 'min-w-max'}`}>
               {currentView === 'kanban' && (
@@ -473,6 +462,7 @@ export default function HubView() {
               )}
               {currentView === 'planilha' && <SpreadsheetView cards={activeCards} quadros={quadros} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
               {currentView === 'historico' && <SpreadsheetView cards={historyCards} quadros={quadros} isHistory={true} onViewCard={openViewModal} isClientEditor={isClientEditor} />}
+              {currentView === 'dashboard' && <DashboardView cards={activeCards} historyCards={historyCards} quadros={quadros} />}
             </div>
           </div>
         </main>

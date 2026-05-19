@@ -3,7 +3,7 @@ import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp,
 import { db } from '../config/firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Trash2 } from 'lucide-react';
-import { Avatar } from './CustomUI'; // IMPORTANDO O AVATAR
+import { Avatar } from './CustomUI'; 
 
 export const logNotification = async (hubId, userName, message, type = 'info') => {
   if (!hubId) return;
@@ -44,7 +44,7 @@ export default function NotificationBell({ hubId }) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative z-[999]">
       <button onClick={() => setIsOpen(!isOpen)} className="relative p-2 text-slate-500 hover:text-blue-500 transition-colors">
         <Bell size={22} />
         {unreadCount > 0 && (
@@ -58,7 +58,7 @@ export default function NotificationBell({ hubId }) {
         {isOpen && (
           <motion.div 
             initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute top-full right-0 mt-3 w-80 bg-white dark:bg-slate-800 shadow-2xl rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden z-50"
+            className="absolute top-full right-0 mt-3 w-80 bg-white dark:bg-slate-800 shadow-2xl rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden z-[999]"
           >
             <div className="p-4 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
               <span className="font-bold text-sm">Notificações</span>
@@ -76,7 +76,6 @@ export default function NotificationBell({ hubId }) {
                 notifications.map(n => (
                   <div key={n.id} className="p-4 border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
                     <div className="flex items-center gap-2 mb-1">
-                      {/* AQUI ESTÁ O AVATAR DA NOTIFICAÇÃO */}
                       <Avatar name={n.userName} size="sm" />
                       <span className="text-[10px] font-black uppercase text-slate-400">{n.userName}</span>
                     </div>
