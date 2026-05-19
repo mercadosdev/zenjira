@@ -6,10 +6,9 @@ import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/fi
 import { db } from '../config/firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logNotification } from './NotificationBell';
-import { X, FileText, UserCircle, Tag, Clock, AlertTriangle, Settings, Box, LayoutList, ExternalLink, Edit3, AlignLeft, CheckSquare, Plus, Trash2, TextCursorInput, Flame, Copy, History } from 'lucide-react';
+import { X, FileText, UserCircle, Tag, Clock, AlertTriangle, Settings, Box, LayoutList, ExternalLink, Edit3, AlignLeft, CheckSquare, Plus, Trash2, TextCursorInput, Flame, Copy, History, MessageSquare } from 'lucide-react';
 import { t } from '../utils/i18n';
 
-// Custom UI
 import { CustomSelect, CustomDatePicker, StatusBadge, CategoryBadge } from './CustomUI';
 import { STATUS_OPTIONS, COMPLEXIDADE_OPTIONS, MER_PRIORITIES, CATEGORIAS } from '../utils/constants';
 
@@ -20,6 +19,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
   const [nome, setNome] = useState('');
   const [statusApp, setStatusApp] = useState(''); 
+  const [comentarioCliente, setComentarioCliente] = useState(''); // NOVO CAMPO
   const [descricao, setDescricao] = useState('');
   const [status, setStatus] = useState('Na fila');
   const [categoria, setCategoria] = useState('Default'); 
@@ -27,7 +27,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
   const [comentarios, setComentarios] = useState('');
   const [previsaoEntrega, setPrevisaoEntrega] = useState('');
   const [zendesk, setZendesk] = useState('');
-  const [envioPrioritario, setEnvioPrioritario] = useState(false); // NOVO
+  const [envioPrioritario, setEnvioPrioritario] = useState(false);
   
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtask, setNewSubtask] = useState('');
@@ -50,6 +50,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
       const data = card.data; 
       setNome(data?.nome || '');
       setStatusApp(data?.statusApp || ''); 
+      setComentarioCliente(data?.comentarioCliente || ''); // CARREGA NOVO CAMPO
       setDescricao(data?.descricao || '');
       setStatus(card.status || 'Na fila');
       setCategoria(data?.categoria || 'Default'); 
@@ -90,7 +91,23 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     setSubtasks(subtasks.filter(s => s.id !== id));
   };
 
-  // LÓGICA DE DUPLICAR
+  // NOVA LÓGICA: Atualiza subtarefa diretamente no banco no modo visualização
+  const handleToggleSubtaskViewMode = async (taskId) => {
+    if (!canEdit) return;
+    const newSubtasks = subtasks.map(s => s.id === taskId ? { ...s, completed: !s.completed } : s);
+    setSubtasks(newSubtasks); // Atualiza UI instantaneamente
+
+    const updatedData = { ...card.data, subtasks: newSubtasks };
+    const encrypted = encryptData(updatedData, activeHubKey);
+
+    try {
+      await updateDoc(doc(db, `hubs/${hubId}/cards`, card.id), {
+        content: encrypted,
+        updatedAt: serverTimestamp()
+      });
+    } catch (e) { console.error(e); }
+  };
+
   const handleDuplicate = () => {
     openDialog({
       type: 'prompt',
@@ -130,7 +147,6 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
       currentStatusAppUpdatedAt = new Date().toISOString();
     }
 
-    // LÓGICA DE ADIAMENTOS: Se a nova data é MAIOR que a antiga, soma +1
     let currentAdiamentos = card?.data?.adiamentosEntrega || 0;
     if (previsaoEntrega && card?.data?.previsaoEntrega) {
        const newDate = new Date(previsaoEntrega + 'T12:00:00');
@@ -143,7 +159,8 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     const cardDataPayload = {
       nome, 
       statusApp, 
-      statusAppUpdatedAt: currentStatusAppUpdatedAt, 
+      statusAppUpdatedAt: currentStatusAppUpdatedAt,
+      comentarioCliente, // SALVANDO O CAMPO NOVO
       descricao, 
       categoria, 
       responsavel, 
@@ -245,15 +262,28 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
             {isView ? (
               <div className="space-y-6">
 
-                {statusApp && (
-                  <div>
-                    <label className={labelClass}><TextCursorInput size={14}/> Status da Aplicação</label>
-                    <p className="text-sm font-semibold text-igs-primary bg-igs-primary/5 border border-igs-primary/20 p-3 rounded-xl">{statusApp}</p>
-                    {card.data?.statusAppUpdatedAt && (
-                       <p className="text-[10px] text-slate-400 mt-1.5 ml-1">Atualizado em: {new Date(card.data.statusAppUpdatedAt).toLocaleString()}</p>
-                    )}
-                  </div>
-                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {statusApp && (
+                    <div>
+                      <label className={labelClass}><TextCursorInput size={14}/> Status da Aplicação</label>
+                      <div className="bg-igs-primary/5 border border-igs-primary/20 p-3 rounded-xl">
+                        <p className="text-sm font-semibold text-igs-primary break-words whitespace-pre-wrap">{statusApp}</p>
+                      </div>
+                      {card.data?.statusAppUpdatedAt && (
+                        <p className="text-[10px] text-slate-400 mt-1.5 ml-1">Atualizado em: {new Date(card.data.statusAppUpdatedAt).toLocaleString()}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {comentarioCliente && (
+                    <div>
+                      <label className={labelClass}><MessageSquare size={14}/> {isIgs ? "Comentário do Cliente" : "Comentário"}</label>
+                      <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/50 p-3 rounded-xl">
+                        <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 break-words whitespace-pre-wrap">{comentarioCliente}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {descricao && (
                   <div>
@@ -262,6 +292,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   </div>
                 )}
                 
+                {/* SUBTAREFAS COM AUTO-SAVE NA VISUALIZAÇÃO */}
                 {(subtasks.length > 0) && (
                   <div className="bg-slate-50 dark:bg-slate-900/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/50">
                     <div className="flex justify-between items-center mb-3">
@@ -274,7 +305,14 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                     <div className="space-y-2">
                       {subtasks.map(task => (
                         <div key={task.id} className="flex items-center gap-3">
-                          <input type="checkbox" checked={task.completed} onChange={() => canEdit && toggleSubtask(task.id)} disabled={!canEdit} className="w-4 h-4 rounded text-igs-primary border-slate-300 focus:ring-igs-primary transition-all cursor-pointer"/>
+                          {/* CHECKBOX FUNCIONAL NA VIEW */}
+                          <input 
+                            type="checkbox" 
+                            checked={task.completed} 
+                            onChange={() => handleToggleSubtaskViewMode(task.id)} 
+                            disabled={!canEdit} 
+                            className="w-4 h-4 rounded text-igs-primary border-slate-300 focus:ring-igs-primary transition-all cursor-pointer disabled:opacity-50"
+                          />
                           <span className={`text-sm ${task.completed ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>{task.title}</span>
                         </div>
                       ))}
@@ -347,7 +385,6 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
               /* -------------------- MODO EDIT/CREATE -------------------- */
               <div className="space-y-5 pb-4">
                 
-                {/* CHECKBOX DE PRIORIDADE */}
                 <div className="flex flex-wrap items-center gap-2 mb-2 bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-900/50">
                   <input type="checkbox" id="prioritario" checked={envioPrioritario} onChange={e => setEnvioPrioritario(e.target.checked)} className="w-5 h-5 rounded text-red-600 focus:ring-red-500 border-red-300 cursor-pointer" />
                   <label htmlFor="prioritario" className="text-sm font-bold text-red-700 dark:text-red-400 flex items-center gap-2 cursor-pointer">
@@ -364,6 +401,12 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                     <label className={labelClass}><TextCursorInput size={14} className="text-slate-400"/> Status da Aplicação</label>
                     <input value={statusApp} onChange={e => setStatusApp(e.target.value)} className={inputClass} placeholder="Ex: Aguardando Servidor, Falha API..." />
                   </div>
+                </div>
+
+                {/* CAMPO DE COMENTÁRIO DO CLIENTE */}
+                <div>
+                  <label className={labelClass}><MessageSquare size={14} className="text-slate-400"/> {isIgs ? "Comentário do Cliente" : "Comentário"}</label>
+                  <textarea value={comentarioCliente} onChange={e => setComentarioCliente(e.target.value)} rows="2" className={inputClass} placeholder="Feedback rápido do cliente..." />
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[70] relative">

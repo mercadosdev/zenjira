@@ -5,7 +5,7 @@ import { decryptData } from '../utils/crypto';
 import { doc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { logNotification } from './NotificationBell';
-import { Plus, Edit2, Trash2, Search, X, GripVertical, Palette, TextCursorInput, Copy, ArrowRight, ChevronUp, ChevronDown, Calendar, History, Flame } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, GripVertical, Palette, TextCursorInput, Copy, ArrowRight, ChevronUp, ChevronDown, Calendar, History, Flame, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BOARD_COLORS } from '../utils/constants';
 import { t } from '../utils/i18n';
@@ -149,8 +149,8 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch (error) { console.error(error); }
   };
 
-  const handleMouseEnter = (e, cardId, hasStatusApp) => {
-    if (!FEATURE_FLAG_BLUR_EFFECT || !hasStatusApp) return;
+  const handleMouseEnter = (e, cardId, hasTooltip) => {
+    if (!FEATURE_FLAG_BLUR_EFFECT || !hasTooltip) return;
     
     const rect = e.currentTarget.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
@@ -187,7 +187,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
   return (
     <>
       <DragDropContext onDragEnd={onDragEnd}>
-        {/* CORREÇÃO DO ESPAÇAMENTO LATERAL: Adicionado px-6 lg:px-8 para criar o recuo global no Kanban */}
         <div className="flex gap-4 sm:gap-6 items-start h-full overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-6 lg:px-8 w-full custom-scrollbar">
           
           <AnimatePresence>
@@ -285,7 +284,15 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                             const categoria = cardData?.categoria || 'Default';
 
                             const isFocused = focusedCardId === card.id;
+                            
+                            // VALIDAÇÕES PARA OS POP-UPS
                             const hasStatusApp = !!cardData?.statusApp;
+                            const hasClientComment = !!cardData?.comentarioCliente;
+                            const hasTooltip = hasStatusApp || hasClientComment;
+
+                            // Lógica de cores do Pop-up Container
+                            const bgTooltip = hasStatusApp ? 'bg-slate-900 dark:bg-slate-950' : 'bg-emerald-900 dark:bg-emerald-950';
+                            const borderTooltip = hasStatusApp ? 'border-slate-700 dark:border-slate-800' : 'border-emerald-700 dark:border-emerald-800';
 
                             return (
                               <Draggable key={card.id} draggableId={card.id} index={index} isDragDisabled={!canEdit}>
@@ -296,7 +303,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                     <div
                                       ref={provided.innerRef} {...provided.draggableProps} 
                                       onClick={() => onViewCard(card)} 
-                                      onMouseEnter={(e) => handleMouseEnter(e, card.id, hasStatusApp)}
+                                      onMouseEnter={(e) => handleMouseEnter(e, card.id, hasTooltip)}
                                       onMouseLeave={handleMouseLeave}
                                       className={`group bg-white dark:bg-igs-panel p-4 mb-3 rounded-2xl border-l-4 cursor-pointer transition-all duration-300 ${leftBorder} ${
                                         snapshot.isDragging ? 'shadow-2xl scale-105 opacity-95 ring-2 ring-igs-primary z-[60]' : 
@@ -305,26 +312,43 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                       style={{ ...provided.draggableProps.style }}
                                     >
 
-                                      {/* BALÃO FLUTUANTE DE STATUS */}
-                                      {isFocused && hasStatusApp && (
-                                        <div className={`absolute z-[160] left-1/2 -translate-x-1/2 w-64 p-4 bg-slate-900 dark:bg-slate-950 rounded-2xl shadow-2xl shadow-slate-900/50 dark:shadow-black/80 border border-slate-700 dark:border-slate-800 pointer-events-none animate-in fade-in zoom-in-95 duration-200 ${
+                                      {/* BALÃO FLUTUANTE DE STATUS/COMENTÁRIOS */}
+                                      {isFocused && hasTooltip && (
+                                        <div className={`absolute z-[160] left-1/2 -translate-x-1/2 w-64 ${bgTooltip} rounded-2xl shadow-2xl shadow-black/50 border ${borderTooltip} overflow-hidden pointer-events-none animate-in fade-in zoom-in-95 duration-200 flex flex-col ${
                                           tooltipPos === 'top' ? 'bottom-[calc(100%+16px)]' : 'top-[calc(100%+16px)]'
                                         }`}>
-                                          <div className={`absolute left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 dark:bg-slate-950 border-slate-700 dark:border-slate-800 rotate-45 ${
-                                            tooltipPos === 'top' ? '-bottom-2 border-b border-r' : '-top-2 border-t border-l'
+                                          {/* Triângulo direcional */}
+                                          <div className={`absolute left-1/2 -translate-x-1/2 w-4 h-4 ${bgTooltip} border-t border-l ${borderTooltip} rotate-45 ${
+                                            tooltipPos === 'top' ? '-bottom-2 border-b border-r' : '-top-2'
                                           }`}></div>
                                           
-                                          <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-purple-300 tracking-wider mb-2">
-                                            <TextCursorInput size={12} /> Status da Aplicação
-                                          </span>
-                                          <p className="text-sm font-semibold text-white leading-snug">
-                                            {cardData.statusApp}
-                                          </p>
-                                          
-                                          {cardData.statusAppUpdatedAt && (
-                                            <div className="mt-3 pt-2 border-t border-slate-700/80 flex justify-between items-center text-[9px] text-slate-400 font-medium uppercase tracking-widest">
-                                              <span>Atualizado:</span>
-                                              <span>{new Date(cardData.statusAppUpdatedAt).toLocaleString()}</span>
+                                          {/* Seção 1: Status da Aplicação */}
+                                          {hasStatusApp && (
+                                            <div className="p-4">
+                                              <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-purple-300 tracking-wider mb-2">
+                                                <TextCursorInput size={12} /> Status da Aplicação
+                                              </span>
+                                              <p className="text-sm font-semibold text-white leading-snug break-words whitespace-pre-wrap">
+                                                {cardData.statusApp}
+                                              </p>
+                                              {cardData.statusAppUpdatedAt && (
+                                                <div className="mt-3 pt-2 border-t border-slate-700/80 flex justify-between items-center text-[9px] text-slate-400 font-medium uppercase tracking-widest">
+                                                  <span>Atualizado:</span>
+                                                  <span>{new Date(cardData.statusAppUpdatedAt).toLocaleString()}</span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+
+                                          {/* Seção 2: Comentário do Cliente */}
+                                          {hasClientComment && (
+                                            <div className={`p-4 ${hasStatusApp ? 'border-t border-slate-700 bg-emerald-900/30' : ''}`}>
+                                              <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-emerald-300 tracking-wider mb-2">
+                                                <MessageSquare size={12} /> {isIgs ? "Comentário do Cliente" : "Comentário"}
+                                              </span>
+                                              <p className="text-sm font-semibold text-white leading-snug break-words whitespace-pre-wrap">
+                                                {cardData.comentarioCliente}
+                                              </p>
                                             </div>
                                           )}
                                         </div>
@@ -381,16 +405,20 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                         </div>
                                       )}
                                       
-                                      {/* LINHA INFERIOR (Status, Categoria, e o Novo Indicador) */}
                                       <div className="flex justify-between items-center mt-3 gap-2 flex-wrap">
                                         <div className="flex flex-wrap items-center gap-2">
                                           <StatusBadge status={card.status} />
                                           {categoria && categoria !== 'Default' && <CategoryBadge categoryLabel={categoria} />}
                                           
-                                          {/* NOVO: Ícone indicador de Status da Aplicação */}
+                                          {/* ÍCONES INDICADORES NA BASE DO CARD */}
                                           {hasStatusApp && (
-                                            <span className="flex items-center justify-center w-6 h-5 rounded-md border border-purple-200 dark:border-purple-900/50 text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 shadow-sm" title="Status da Aplicação disponível (Passe o mouse)">
+                                            <span className="flex items-center justify-center w-6 h-5 rounded-md border border-purple-200 dark:border-purple-900/50 text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 shadow-sm" title="Status da Aplicação disponível">
                                               <TextCursorInput size={12}/>
+                                            </span>
+                                          )}
+                                          {hasClientComment && (
+                                            <span className="flex items-center justify-center w-6 h-5 rounded-md border border-emerald-200 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 shadow-sm" title={isIgs ? "Comentário do Cliente" : "Comentário"}>
+                                              <MessageSquare size={12}/>
                                             </span>
                                           )}
                                         </div>

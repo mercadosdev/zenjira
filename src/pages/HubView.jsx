@@ -17,7 +17,6 @@ import HubSettingsModal from '../components/HubSettingsModal';
 import QuickAddModal from '../components/QuickAddModal';
 import TeamModal from '../components/TeamModal';
 import { GlobalDialogs, Avatar } from '../components/CustomUI'; 
-// Componente importado na Parte 2:
 import DashboardView from '../components/DashboardView'; 
 
 const TERMINAL_STATUSES = ['Cancelado', 'Na rua'];
@@ -42,9 +41,11 @@ export default function HubView() {
   const [isClientEditor, setIsClientEditor] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [currentView, setCurrentView] = useState('kanban'); // kanban, planilha, historico, dashboard
+  const [currentView, setCurrentView] = useState('kanban');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState({ responsavel: '', prioridade: '', complexidade: '', tipo: '', quadroId: '' });
+  
+  // ATUALIZADO: Filtros agora usam status e categoria
+  const [filters, setFilters] = useState({ responsavel: '', status: '', categoria: '', tipo: '', quadroId: '' });
   const [copied, setCopied] = useState(false);
 
   const isIgs = userRole === 'igs';
@@ -141,7 +142,6 @@ export default function HubView() {
       return orderA - orderB;
     });
 
-    // MÁGICA DOS FILTROS: Agora funcionam para o Kanban também!
     if (searchTerm) { 
       const lowerSearch = searchTerm.toLowerCase();
       cardsData = cardsData.filter(card => {
@@ -156,9 +156,10 @@ export default function HubView() {
       });
     }
 
+    // ATUALIZADO: Filtros novos e remoção dos antigos
     if (filters.responsavel) cardsData = cardsData.filter(c => c.data?.responsavel === filters.responsavel);
-    if (filters.prioridade) cardsData = cardsData.filter(c => c.data?.prioridade === filters.prioridade);
-    if (filters.complexidade) cardsData = cardsData.filter(c => c.data?.complexidade === filters.complexidade);
+    if (filters.status) cardsData = cardsData.filter(c => c.status === filters.status);
+    if (filters.categoria) cardsData = cardsData.filter(c => c.data?.categoria === filters.categoria);
     if (filters.tipo) cardsData = cardsData.filter(c => c.data?.troubleshooting?.tipo === filters.tipo);
     if (filters.quadroId) cardsData = cardsData.filter(c => c.quadroId === filters.quadroId); 
 
@@ -203,7 +204,6 @@ export default function HubView() {
     });
   };
 
-  // TROCA INSTANTÂNEA DE HUBS
   const switchHub = async (hub) => {
     if (hub.id === hubId) {
       setIsSidebarOpen(false); 
@@ -230,7 +230,7 @@ export default function HubView() {
                 const testDecrypt = decryptData(testCard.content, key);
                 if (!testDecrypt || typeof testDecrypt !== 'object') {
                    alert("⚠️ Chave incorreta! Tente novamente.");
-                   setTimeout(() => switchHub(hub), 300); // Tenta novamente reabrindo o dialog
+                   setTimeout(() => switchHub(hub), 300);
                    return;
                 }
              }
@@ -366,7 +366,8 @@ export default function HubView() {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-20 bg-white dark:bg-igs-panel border-b border-slate-200 dark:border-slate-800 px-4 lg:px-6 flex justify-between items-center z-40 shadow-sm transition-colors duration-300 shrink-0">
+        {/* CORREÇÃO DO GLITCH: Elevação do header para z-[200] */}
+        <header className="h-20 bg-white dark:bg-igs-panel border-b border-slate-200 dark:border-slate-800 px-4 lg:px-6 flex justify-between items-center z-[200] shadow-sm transition-colors duration-300 shrink-0">
           <div className="flex items-center gap-2 lg:gap-6">
             <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl lg:hidden transition-colors">
               <Menu size={24} />
@@ -421,7 +422,6 @@ export default function HubView() {
             <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-igs-primary dark:hover:text-amber-400 rounded-full transition-colors hidden sm:block">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button>
             <NotificationBell hubId={hubId} />
             
-            {/* BOTÕES DESKTOP - AGORA INCLUI DASHBOARD */}
             <div className="hidden md:flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-slate-800 gap-1 ml-2 shrink-0">
               <button onClick={() => setCurrentView('kanban')} className={`${btnViewClass} ${currentView === 'kanban' ? 'bg-white dark:bg-slate-700 text-igs-primary dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><Kanban size={16} /> {t(language, 'kanban')}</button>
               <button onClick={() => setCurrentView('planilha')} className={`${btnViewClass} ${currentView === 'planilha' ? 'bg-white dark:bg-slate-700 text-igs-primary dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><Table size={16} /> {t(language, 'spreadsheet')}</button>
@@ -429,7 +429,6 @@ export default function HubView() {
               <button onClick={() => setCurrentView('dashboard')} className={`${btnViewClass} ${currentView === 'dashboard' ? 'bg-white dark:bg-slate-700 text-igs-primary dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}><LayoutDashboard size={16} /> Dash</button>
             </div>
 
-            {/* BOTÃO MOBILE (Sequencial) - AGORA INCLUI DASHBOARD */}
             <div className="flex md:hidden ml-1 shrink-0">
               <button onClick={handleCycleView} className="p-2.5 bg-slate-100 dark:bg-slate-900/50 text-igs-primary dark:text-white rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors flex items-center justify-center font-bold">
                 {currentView === 'kanban' && <Kanban size={18} />}
