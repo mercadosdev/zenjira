@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAppStore } from '../store/store';
 import { decryptData } from '../utils/crypto';
@@ -26,6 +26,9 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
   const [tooltipPos, setTooltipPos] = useState('bottom'); 
 
   const [pendingDrop, setPendingDrop] = useState(null);
+  
+  // NOVO: Referência para o cronômetro do hover (1.5 segundos)
+  const hoverTimer = useRef(null);
 
   const handleSearchChange = (quadroId, value) => setColSearch(prev => ({ ...prev, [quadroId]: value }));
   const toggleSearch = (quadroId) => {
@@ -149,6 +152,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     } catch (error) { console.error(error); }
   };
 
+  // NOVA LÓGICA DO HOVER: Atraso de 1.5s
   const handleMouseEnter = (e, cardId, hasTooltip) => {
     if (!FEATURE_FLAG_BLUR_EFFECT || !hasTooltip) return;
     
@@ -156,11 +160,17 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     const spaceBelow = window.innerHeight - rect.bottom;
     
     setTooltipPos(spaceBelow < 180 ? 'top' : 'bottom');
-    setFocusedCardId(cardId); 
+    
+    // Inicia a contagem de 1.5 segundos
+    hoverTimer.current = setTimeout(() => {
+      setFocusedCardId(cardId); 
+    }, 1500);
   };
 
   const handleMouseLeave = () => {
     if (!FEATURE_FLAG_BLUR_EFFECT) return;
+    // Se o mouse sair antes de 1.5s, cancela o cronômetro
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
     setFocusedCardId(null);
   };
 
@@ -187,7 +197,6 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
   return (
     <>
       <DragDropContext onDragEnd={onDragEnd}>
-        {/* Espaçamento Reduzido no container principal */}
         <div className="flex gap-4 sm:gap-5 items-start h-full overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-4 lg:px-6 w-full custom-scrollbar">
           
           <AnimatePresence>
@@ -296,7 +305,8 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                             return (
                               <Draggable key={card.id} draggableId={card.id} index={index} isDragDisabled={!canEdit}>
                                 {(provided, snapshot) => {
-                                  if (snapshot.isDragging && isFocused) handleMouseLeave();
+                                  // Se começar a arrastar e houver um blur/timer, limpa para previnir comportamentos inesperados
+                                  if (snapshot.isDragging) handleMouseLeave();
 
                                   return (
                                     <div
