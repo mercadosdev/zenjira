@@ -19,7 +19,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
   const [nome, setNome] = useState('');
   const [statusApp, setStatusApp] = useState(''); 
-  const [comentarioCliente, setComentarioCliente] = useState(''); // NOVO CAMPO
+  const [comentarioCliente, setComentarioCliente] = useState(''); 
   const [descricao, setDescricao] = useState('');
   const [status, setStatus] = useState('Na fila');
   const [categoria, setCategoria] = useState('Default'); 
@@ -50,7 +50,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
       const data = card.data; 
       setNome(data?.nome || '');
       setStatusApp(data?.statusApp || ''); 
-      setComentarioCliente(data?.comentarioCliente || ''); // CARREGA NOVO CAMPO
+      setComentarioCliente(data?.comentarioCliente || ''); 
       setDescricao(data?.descricao || '');
       setStatus(card.status || 'Na fila');
       setCategoria(data?.categoria || 'Default'); 
@@ -91,11 +91,11 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     setSubtasks(subtasks.filter(s => s.id !== id));
   };
 
-  // NOVA LÓGICA: Atualiza subtarefa diretamente no banco no modo visualização
+  // Checkbox de subtarefa salvando direto no modo visualização
   const handleToggleSubtaskViewMode = async (taskId) => {
     if (!canEdit) return;
     const newSubtasks = subtasks.map(s => s.id === taskId ? { ...s, completed: !s.completed } : s);
-    setSubtasks(newSubtasks); // Atualiza UI instantaneamente
+    setSubtasks(newSubtasks); 
 
     const updatedData = { ...card.data, subtasks: newSubtasks };
     const encrypted = encryptData(updatedData, activeHubKey);
@@ -160,7 +160,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
       nome, 
       statusApp, 
       statusAppUpdatedAt: currentStatusAppUpdatedAt,
-      comentarioCliente, // SALVANDO O CAMPO NOVO
+      comentarioCliente, 
       descricao, 
       categoria, 
       responsavel, 
@@ -194,16 +194,16 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
   };
 
   const isView = mode === 'view';
-  const inputClass = "w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-igs-primary outline-none text-sm text-slate-800 dark:text-slate-200 transition-colors";
-  const labelClass = "text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5 uppercase tracking-wider text-[10px]";
+  const inputClass = "w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-igs-primary outline-none text-sm text-slate-800 dark:text-slate-200 transition-colors";
+  const labelClass = "text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5 uppercase tracking-wider";
 
   const renderLinks = (text, type) => {
     const links = parseLinks(text, type);
     if (!links.length) return <span className="text-slate-400 text-sm">Nenhum vínculo</span>;
     return (
-      <div className="flex flex-wrap gap-2 mt-1">
+      <div className="flex flex-wrap gap-1.5 mt-1">
         {links.map((link, idx) => (
-          <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1 bg-igs-primary/10 text-igs-primary hover:bg-igs-primary/20 rounded-lg text-xs font-semibold transition-colors border border-igs-primary/20">
+          <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 bg-igs-primary/10 text-igs-primary hover:bg-igs-primary/20 rounded-lg text-xs font-semibold transition-colors border border-igs-primary/20">
             {link.label} <ExternalLink size={10} />
           </a>
         ))}
@@ -218,22 +218,24 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
     <AnimatePresence>
       <motion.div 
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-start md:items-center z-[150] p-4 overflow-y-auto"
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-start md:items-center z-[250] p-4"
         onClick={onClose}
       >
+        {/* CORREÇÃO DO CORTE: max-h-[90vh] e flex flex-col para scroll interno perfeito */}
         <motion.div 
           initial={{ y: 50, scale: 0.95 }} animate={{ y: 0, scale: 1 }} exit={{ y: 20, scale: 0.95 }} transition={{ type: "spring", bounce: 0.3 }}
-          className="bg-white dark:bg-igs-panel p-6 md:p-8 rounded-3xl w-full max-w-2xl shadow-2xl relative border border-slate-100 dark:border-slate-800 my-auto"
+          className="bg-white dark:bg-igs-panel p-5 md:p-6 rounded-3xl w-full max-w-2xl shadow-2xl relative border border-slate-100 dark:border-slate-800 my-auto flex flex-col max-h-[90vh]"
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex justify-between items-start mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+          {/* HEADER TRAVADO */}
+          <div className="flex justify-between items-start mb-4 pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
             <div className="pr-4">
-              <h2 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <LayoutList className="text-igs-primary shrink-0" />
+              <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <LayoutList className="text-igs-primary shrink-0" size={20} />
                 {isView ? nome : (mode === 'edit' ? t(language, 'editTask') : t(language, 'newTask'))}
               </h2>
               {isView && (
-                <div className="mt-3 flex gap-2 items-center flex-wrap">
+                <div className="mt-2.5 flex gap-2 items-center flex-wrap">
                   <StatusBadge status={status} />
                   {categoria && categoria !== 'Default' && <CategoryBadge categoryLabel={categoria} />}
                   {envioPrioritario && <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-red-200 dark:border-red-900/60 text-[10px] font-bold tracking-wide text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20"><Flame size={12}/> URGENTE</span>}
@@ -241,36 +243,37 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
               )}
             </div>
             
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               {isView && canEdit && (
                 <>
-                  <button onClick={handleDuplicate} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-igs-primary transition-colors" title="Duplicar Tarefa">
-                    <Copy size={20} />
+                  <button onClick={handleDuplicate} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-igs-primary transition-colors" title="Duplicar Tarefa">
+                    <Copy size={18} />
                   </button>
-                  <button onClick={onSwitchToEdit} className="p-2 rounded-xl bg-igs-primary/10 text-igs-primary hover:bg-igs-primary/20 transition-colors" title={t(language, 'editTask')}>
-                    <Edit3 size={20} />
+                  <button onClick={onSwitchToEdit} className="p-1.5 rounded-lg bg-igs-primary/10 text-igs-primary hover:bg-igs-primary/20 transition-colors" title={t(language, 'editTask')}>
+                    <Edit3 size={18} />
                   </button>
                 </>
               )}
-              <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"><X size={24} /></button>
+              <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"><X size={20} /></button>
             </div>
           </div>
           
-          <div className="space-y-6 max-h-[70vh] overflow-y-auto px-2 -mx-2 custom-scrollbar">
+          {/* BODY SCROLLÁVEL */}
+          <div className="space-y-5 overflow-y-auto pr-2 custom-scrollbar flex-1">
             
             {/* -------------------- MODO VIEW -------------------- */}
             {isView ? (
-              <div className="space-y-6">
+              <div className="space-y-5">
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {statusApp && (
                     <div>
                       <label className={labelClass}><TextCursorInput size={14}/> Status da Aplicação</label>
-                      <div className="bg-igs-primary/5 border border-igs-primary/20 p-3 rounded-xl">
+                      <div className="bg-igs-primary/5 border border-igs-primary/20 p-2.5 rounded-xl">
                         <p className="text-sm font-semibold text-igs-primary break-words whitespace-pre-wrap">{statusApp}</p>
                       </div>
                       {card.data?.statusAppUpdatedAt && (
-                        <p className="text-[10px] text-slate-400 mt-1.5 ml-1">Atualizado em: {new Date(card.data.statusAppUpdatedAt).toLocaleString()}</p>
+                        <p className="text-[10px] text-slate-400 mt-1 ml-1">Atualizado: {new Date(card.data.statusAppUpdatedAt).toLocaleString()}</p>
                       )}
                     </div>
                   )}
@@ -278,7 +281,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   {comentarioCliente && (
                     <div>
                       <label className={labelClass}><MessageSquare size={14}/> {isIgs ? "Comentário do Cliente" : "Comentário"}</label>
-                      <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/50 p-3 rounded-xl">
+                      <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/50 p-2.5 rounded-xl">
                         <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 break-words whitespace-pre-wrap">{comentarioCliente}</p>
                       </div>
                     </div>
@@ -288,24 +291,22 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                 {descricao && (
                   <div>
                     <label className={labelClass}><AlignLeft size={14}/> {t(language, 'description')}</label>
-                    <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl whitespace-pre-wrap leading-relaxed">{descricao}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl whitespace-pre-wrap leading-relaxed">{descricao}</p>
                   </div>
                 )}
                 
-                {/* SUBTAREFAS COM AUTO-SAVE NA VISUALIZAÇÃO */}
                 {(subtasks.length > 0) && (
-                  <div className="bg-slate-50 dark:bg-slate-900/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/50">
-                    <div className="flex justify-between items-center mb-3">
-                      <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1"><CheckSquare size={14}/> {t(language, 'subtasks')}</label>
-                      <span className="text-[10px] font-bold text-igs-primary">{progress}% Concluído</span>
+                  <div className="bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1"><CheckSquare size={12}/> {t(language, 'subtasks')}</label>
+                      <span className="text-[10px] font-bold text-igs-primary">{progress}%</span>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mb-4 overflow-hidden">
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mb-3 overflow-hidden">
                       <div className={`h-full rounded-full transition-all duration-500 ${progress === 100 ? 'bg-emerald-500' : 'bg-igs-primary'}`} style={{ width: `${progress}%` }}></div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {subtasks.map(task => (
-                        <div key={task.id} className="flex items-center gap-3">
-                          {/* CHECKBOX FUNCIONAL NA VIEW */}
+                        <div key={task.id} className="flex items-center gap-2">
                           <input 
                             type="checkbox" 
                             checked={task.completed} 
@@ -320,7 +321,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900/30 p-3 rounded-xl border border-slate-100 dark:border-slate-800/50">
                   <div>
                     <label className={labelClass}><UserCircle size={14}/> {t(language, 'responsible')}</label>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{responsavel || '-'}</div>
@@ -350,8 +351,8 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                 )}
 
                 {isIgs && (
-                  <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-700 pt-6 mt-6">
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 uppercase tracking-widest"><Settings size={16} className="text-slate-400" /> {t(language, 'internalFields')}</h3>
+                  <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-700 pt-4 mt-4">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2 uppercase tracking-widest"><Settings size={14} className="text-slate-400" /> {t(language, 'internalFields')}</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div><label className={labelClass}>{t(language, 'complexity')}</label><div className="text-sm font-semibold">{complexidade}</div></div>
@@ -359,21 +360,21 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                       <div className="col-span-1 md:col-span-2"><label className={labelClass}>Jira (Issues)</label>{renderLinks(jira, 'jira')}</div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/30">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-xl border border-amber-100 dark:border-amber-900/30">
                         <h4 className="font-bold text-[10px] uppercase text-amber-800 dark:text-amber-500 mb-2 flex items-center gap-1"><AlertTriangle size={12} /> Troubleshooting</h4>
-                        <div className="space-y-2 text-sm text-amber-900 dark:text-amber-400">
+                        <div className="space-y-1.5 text-sm text-amber-900 dark:text-amber-400">
                           <p><strong>{t(language, 'type')}:</strong> {tipo}</p>
                           <p><strong>{t(language, 'version')}:</strong> {versao || '-'}</p>
                           <p><strong>PKG:</strong> {pkg || '-'}</p>
                         </div>
                       </div>
-                      <div className="bg-igs-primary/5 p-4 rounded-xl border border-igs-primary/20">
+                      <div className="bg-igs-primary/5 p-3 rounded-xl border border-igs-primary/20">
                         <h4 className="font-bold text-[10px] uppercase text-igs-primary mb-2 flex items-center gap-1"><Box size={12} /> Delivery</h4>
-                        <div className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                        <div className="space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
                           <p><strong>DLV:</strong> {dlv || '-'}</p>
                           <p><strong>Ver. Gerada:</strong> {versaoGerada || '-'}</p>
-                          <p><strong>PKG Gerada:</strong> {pkgGerada || '-'}</p>
+                          <p><strong>PKG:</strong> {pkgGerada || '-'}</p>
                         </div>
                       </div>
                     </div>
@@ -383,33 +384,32 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
             ) : (
 
               /* -------------------- MODO EDIT/CREATE -------------------- */
-              <div className="space-y-5 pb-4">
+              <div className="space-y-4 pb-2">
                 
-                <div className="flex flex-wrap items-center gap-2 mb-2 bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-900/50">
-                  <input type="checkbox" id="prioritario" checked={envioPrioritario} onChange={e => setEnvioPrioritario(e.target.checked)} className="w-5 h-5 rounded text-red-600 focus:ring-red-500 border-red-300 cursor-pointer" />
-                  <label htmlFor="prioritario" className="text-sm font-bold text-red-700 dark:text-red-400 flex items-center gap-2 cursor-pointer">
-                    <Flame size={16} /> Marcar como Envio Prioritário (Urgente)
+                <div className="flex flex-wrap items-center gap-2 bg-red-50 dark:bg-red-900/20 p-2.5 rounded-xl border border-red-200 dark:border-red-900/50">
+                  <input type="checkbox" id="prioritario" checked={envioPrioritario} onChange={e => setEnvioPrioritario(e.target.checked)} className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-red-300 cursor-pointer" />
+                  <label htmlFor="prioritario" className="text-xs font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5 cursor-pointer">
+                    <Flame size={14} /> Marcar como Envio Prioritário (Urgente)
                   </label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[80] relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 z-[80] relative">
                   <div>
                     <label className={labelClass}><FileText size={14} className="text-slate-400"/> {t(language, 'taskName')} *</label>
                     <input value={nome} onChange={e => setNome(e.target.value)} className={inputClass} placeholder="Nome da Tarefa" />
                   </div>
                   <div>
                     <label className={labelClass}><TextCursorInput size={14} className="text-slate-400"/> Status da Aplicação</label>
-                    <input value={statusApp} onChange={e => setStatusApp(e.target.value)} className={inputClass} placeholder="Ex: Aguardando Servidor, Falha API..." />
+                    <input value={statusApp} onChange={e => setStatusApp(e.target.value)} className={inputClass} placeholder="Ex: Falha API..." />
                   </div>
                 </div>
 
-                {/* CAMPO DE COMENTÁRIO DO CLIENTE */}
                 <div>
                   <label className={labelClass}><MessageSquare size={14} className="text-slate-400"/> {isIgs ? "Comentário do Cliente" : "Comentário"}</label>
                   <textarea value={comentarioCliente} onChange={e => setComentarioCliente(e.target.value)} rows="2" className={inputClass} placeholder="Feedback rápido do cliente..." />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[70] relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 z-[70] relative">
                   <div>
                     <label className={labelClass}><Tag size={14} className="text-slate-400"/> {t(language, 'status')}</label>
                     <CustomSelect value={status} onChange={setStatus} options={STATUS_OPTIONS} colorMap="status" />
@@ -422,22 +422,22 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
 
                 <div>
                   <label className={labelClass}>{t(language, 'description')}</label>
-                  <textarea value={descricao} onChange={e => setDescricao(e.target.value)} rows="3" className={inputClass} />
+                  <textarea value={descricao} onChange={e => setDescricao(e.target.value)} rows="2" className={inputClass} />
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-900/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                <div className="bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50">
                   <label className={labelClass}><CheckSquare size={14}/> {t(language, 'subtasks')}</label>
                   
-                  <div className="space-y-2 mb-4">
+                  <div className="space-y-2 mb-3">
                     {subtasks.map(task => (
-                      <div key={task.id} className="flex items-center gap-3 bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <div key={task.id} className="flex items-center gap-2 bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
                         <input type="checkbox" checked={task.completed} onChange={() => toggleSubtask(task.id)} className="w-4 h-4 rounded text-igs-primary cursor-pointer"/>
                         <input 
                           type="text" value={task.title} 
                           onChange={(e) => setSubtasks(subtasks.map(s => s.id === task.id ? { ...s, title: e.target.value } : s))}
                           className={`flex-1 bg-transparent text-sm outline-none ${task.completed ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-200'}`} 
                         />
-                        <button onClick={() => removeSubtask(task.id)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded-lg transition-colors"><Trash2 size={14}/></button>
+                        <button onClick={() => removeSubtask(task.id)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-1 rounded-md transition-colors"><Trash2 size={14}/></button>
                       </div>
                     ))}
                   </div>
@@ -445,16 +445,16 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                   <div className="flex gap-2 relative">
                     <input 
                       value={newSubtask} onChange={e=>setNewSubtask(e.target.value)} onKeyDown={e=>e.key === 'Enter' && handleAddSubtask()} 
-                      placeholder={t(language, 'addSubtask')} className={`${inputClass} !py-2.5`} 
+                      placeholder={t(language, 'addSubtask')} className={`${inputClass} py-2`} 
                     />
-                    <button onClick={handleAddSubtask} className="px-5 bg-igs-primary hover:bg-igs-accent text-white rounded-xl font-bold transition-colors"><Plus size={18}/></button>
+                    <button onClick={handleAddSubtask} className="px-4 bg-igs-primary hover:bg-igs-accent text-white rounded-xl font-bold transition-colors"><Plus size={16}/></button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 z-[60] relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 z-[60] relative">
                    <div>
                     <label className={labelClass}>Zendesk</label>
-                    <input value={zendesk} onChange={e => setZendesk(e.target.value)} placeholder="Ex: 12345, 67890" className={inputClass} />
+                    <input value={zendesk} onChange={e => setZendesk(e.target.value)} placeholder="Ex: 12345" className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}><Clock size={14} className="text-slate-400"/> {t(language, 'deliveryDate')}</label>
@@ -463,12 +463,12 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                 </div>
 
                 {isIgs && (
-                  <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-700 pt-6 mt-6">
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 uppercase tracking-widest">
-                      <Settings size={16} className="text-slate-400" /> {t(language, 'internalFields')}
+                  <div className="border-t-2 border-dashed border-slate-200 dark:border-slate-700 pt-4 mt-4">
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2 uppercase tracking-widest">
+                      <Settings size={14} className="text-slate-400" /> {t(language, 'internalFields')}
                     </h3>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5 z-[50] relative">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 z-[50] relative">
                       <div>
                         <label className={labelClass}><UserCircle size={14} className="text-slate-400"/> {t(language, 'responsible')}</label>
                         <CustomSelect value={responsavel} onChange={setResponsavel} options={igsUsers.map(u => u.name)} placeholder="Selecione..." />
@@ -483,40 +483,43 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                       </div>
                     </div>
 
-                    <div className="mb-5">
+                    <div className="mb-4">
                       <label className={labelClass}>Jira</label>
-                      <input value={jira} onChange={e => setJira(e.target.value)} placeholder="Ex: MER-123, ONE-456" className={inputClass} />
+                      <input value={jira} onChange={e => setJira(e.target.value)} placeholder="Ex: MER-123" className={inputClass} />
                     </div>
 
-                    <div className="bg-amber-50 dark:bg-amber-900/10 p-5 rounded-xl border border-amber-100 dark:border-amber-900/30 mb-5">
-                      <h4 className="font-bold text-[10px] text-amber-800 dark:text-amber-500 mb-3 flex items-center gap-2 uppercase tracking-widest"><AlertTriangle size={14} /> Troubleshooting</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 z-[30] relative">
-                        <div><label className="block text-[10px] font-semibold text-amber-700 mb-1">{t(language, 'type')}</label><CustomSelect value={tipo} onChange={setTipo} options={['Jogo', 'Servidor']} /></div>
-                        <div><label className="block text-[10px] font-semibold text-amber-700 mb-1">{t(language, 'version')}</label><input value={versao} onChange={e => setVersao(e.target.value)} className={inputClass} /></div>
-                        <div><label className="block text-[10px] font-semibold text-amber-700 mb-1">PKG</label><input value={pkg} onChange={e => setPkg(e.target.value)} className={inputClass} /></div>
+                    <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/30 mb-4">
+                      <h4 className="font-bold text-[10px] text-amber-800 dark:text-amber-500 mb-2 flex items-center gap-2 uppercase tracking-widest"><AlertTriangle size={12} /> Troubleshooting</h4>
+                      <div className="grid grid-cols-3 gap-3 z-[30] relative">
+                        <div><label className="block text-[9px] font-semibold text-amber-700 mb-1">{t(language, 'type')}</label><CustomSelect value={tipo} onChange={setTipo} options={['Jogo', 'Servidor']} /></div>
+                        <div><label className="block text-[9px] font-semibold text-amber-700 mb-1">{t(language, 'version')}</label><input value={versao} onChange={e => setVersao(e.target.value)} className={inputClass} /></div>
+                        <div><label className="block text-[9px] font-semibold text-amber-700 mb-1">PKG</label><input value={pkg} onChange={e => setPkg(e.target.value)} className={inputClass} /></div>
                       </div>
                     </div>
 
-                    <div className="bg-igs-primary/5 p-5 rounded-xl border border-igs-primary/20 mb-5">
-                      <h4 className="font-bold text-[10px] text-igs-primary mb-3 flex items-center gap-2 uppercase tracking-widest"><Box size={14} /> Delivery</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div><label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-1">DLV</label><input value={dlv} onChange={e => setDlv(e.target.value)} className={inputClass} /></div>
-                        <div><label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Ver. Gerada</label><input value={versaoGerada} onChange={e => setVersaoGerada(e.target.value)} className={inputClass} /></div>
-                        <div><label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-1">PKG Gerada</label><input value={pkgGerada} onChange={e => setPkgGerada(e.target.value)} className={inputClass} /></div>
+                    <div className="bg-igs-primary/5 p-4 rounded-xl border border-igs-primary/20 mb-2">
+                      <h4 className="font-bold text-[10px] text-igs-primary mb-2 flex items-center gap-2 uppercase tracking-widest"><Box size={12} /> Delivery</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div><label className="block text-[9px] font-semibold text-slate-700 dark:text-slate-300 mb-1">DLV</label><input value={dlv} onChange={e => setDlv(e.target.value)} className={inputClass} /></div>
+                        <div><label className="block text-[9px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Ver. Gerada</label><input value={versaoGerada} onChange={e => setVersaoGerada(e.target.value)} className={inputClass} /></div>
+                        <div><label className="block text-[9px] font-semibold text-slate-700 dark:text-slate-300 mb-1">PKG</label><input value={pkgGerada} onChange={e => setPkgGerada(e.target.value)} className={inputClass} /></div>
                       </div>
                     </div>
                   </div>
                 )}
-
-                <div className="flex justify-end gap-3 mt-8 pt-5 border-t border-slate-100 dark:border-slate-800">
-                  <button onClick={onClose} className="px-5 py-3 text-slate-600 dark:text-slate-400 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">{t(language, 'cancel')}</button>
-                  <button onClick={handleSave} disabled={loading} className="px-8 py-3 bg-igs-primary hover:bg-igs-accent text-white font-bold rounded-xl shadow-lg transition-colors disabled:opacity-50">
-                    {loading ? '...' : t(language, 'save')}
-                  </button>
-                </div>
               </div>
             )}
           </div>
+          
+          {/* FOOTER FIXO (Apenas no Edit Mode) */}
+          {!isView && (
+            <div className="flex justify-end gap-3 pt-4 mt-2 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">{t(language, 'cancel')}</button>
+              <button onClick={handleSave} disabled={loading} className="px-6 py-2 text-sm bg-igs-primary hover:bg-igs-accent text-white font-bold rounded-xl shadow-lg transition-colors disabled:opacity-50">
+                {loading ? '...' : t(language, 'save')}
+              </button>
+            </div>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>
