@@ -176,7 +176,7 @@ export default function Hubs() {
           <div className="flex flex-col text-right px-3 hidden md:flex">
             <span className="text-sm font-bold">{user?.displayName}</span>
             <span className={`text-xs font-black uppercase tracking-wider ${isIgs ? 'text-igs-primary' : 'text-emerald-500'}`}>
-              {isIgs ? 'Staff' : 'Cliente'}
+              {isIgs ? 'IGS' : 'Cliente'}
             </span>
           </div>
           

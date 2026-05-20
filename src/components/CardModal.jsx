@@ -268,7 +268,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {statusApp && (
                     <div>
-                      <label className={labelClass}><TextCursorInput size={14}/> Status da Aplicação</label>
+                      <label className={labelClass}><TextCursorInput size={14}/> Status</label>
                       <div className="bg-igs-primary/5 border border-igs-primary/20 p-2.5 rounded-xl">
                         <p className="text-sm font-semibold text-igs-primary break-words whitespace-pre-wrap">{statusApp}</p>
                       </div>
@@ -399,7 +399,7 @@ export default function CardModal({ hubId, quadroId, card, mode, onClose, onSwit
                     <input value={nome} onChange={e => setNome(e.target.value)} className={inputClass} placeholder="Nome da Tarefa" />
                   </div>
                   <div>
-                    <label className={labelClass}><TextCursorInput size={14} className="text-slate-400"/> Status da Aplicação</label>
+                    <label className={labelClass}><TextCursorInput size={14} className="text-slate-400"/> Status</label>
                     <input value={statusApp} onChange={e => setStatusApp(e.target.value)} className={inputClass} placeholder="Ex: Falha API..." />
                   </div>
                 </div>

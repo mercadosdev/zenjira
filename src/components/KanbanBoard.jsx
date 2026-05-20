@@ -164,7 +164,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
     // Inicia a contagem de 1.5 segundos
     hoverTimer.current = setTimeout(() => {
       setFocusedCardId(cardId); 
-    }, 1500);
+    }, 900);
   };
 
   const handleMouseLeave = () => {
@@ -333,7 +333,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                           {hasStatusApp && (
                                             <div className="p-3.5">
                                               <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-purple-300 tracking-wider mb-1.5">
-                                                <TextCursorInput size={12} /> Status da Aplicação
+                                                <TextCursorInput size={12} /> Status
                                               </span>
                                               <p className="text-xs font-semibold text-white leading-snug break-words whitespace-pre-wrap">
                                                 {cardData.statusApp}
@@ -418,7 +418,7 @@ export default function KanbanBoard({ hubId, quadros, cards, onViewCard, onAddCa
                                           
                                           {/* INDICADORES BASE DO CARD */}
                                           {hasStatusApp && (
-                                            <span className="flex items-center justify-center w-5 h-4 rounded border border-purple-200 dark:border-purple-900/50 text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 shadow-sm" title="Status da Aplicação">
+                                            <span className="flex items-center justify-center w-5 h-4 rounded border border-purple-200 dark:border-purple-900/50 text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 shadow-sm" title="Status">
                                               <TextCursorInput size={10}/>
                                             </span>
                                           )}

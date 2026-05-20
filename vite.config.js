@@ -14,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'Zenjira',
         short_name: 'Zenjira',
-        description: 'Plataforma Kanban e Gestão de Demandas IGS',
+        description: 'Plataforma Kanban e Gestão de Demandas',
         theme_color: '#000000',
         background_color: '#000000',
         display: 'standalone', // Faz o app abrir sem a barra de URL do navegador

@@ -382,7 +382,7 @@ export default function HubView() {
               <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5 flex gap-1">
                 <span className="text-slate-400 hidden sm:inline">Acesso: </span>
                 <span className={isIgs ? 'text-igs-primary' : (isClientEditor ? 'text-blue-500' : 'text-emerald-500')}>
-                  {isIgs ? 'Staff' : (isClientEditor ? t(language, 'editor') : t(language, 'viewer'))}
+                  {isIgs ? 'IGS' : (isClientEditor ? t(language, 'editor') : t(language, 'viewer'))}
                 </span>
               </span>
             </div>
@@ -409,7 +409,7 @@ export default function HubView() {
               )}
               {isIgs && (
                 <button onClick={() => setIsTeamModalOpen(true)} className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-700 text-igs-primary dark:text-white rounded-md text-[10px] font-bold shadow-sm transition-colors hover:text-blue-500" title="Status da Equipa">
-                  <Users size={12} /> Team
+                  <Users size={12} /> Time
                 </button>
               )}
             </div>

@@ -12,7 +12,7 @@ import { t } from '../utils/i18n';
 import { CustomSelect, CustomDatePicker, StatusBadge, CategoryBadge } from './CustomUI';
 import { STATUS_OPTIONS, COMPLEXIDADE_OPTIONS, MER_PRIORITIES, CATEGORIAS } from '../utils/constants';
 
-// Configuração atualizada das colunas, agora incluindo "Status da Aplicação"
+// Configuração atualizada das colunas, agora incluindo "Status"
 const DEFAULT_COLUMNS = [
   { id: 'nome', label: 'Tarefa', minWidth: 'min-w-[200px]', isIgs: false },
   { id: 'status', label: 'Status', minWidth: 'min-w-[150px]', isIgs: false },
