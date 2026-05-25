@@ -275,12 +275,12 @@ export default function HubView() {
 
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-20 lg:hidden"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[250] lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-30 transform transition-all duration-300 lg:relative lg:translate-x-0 bg-white dark:bg-igs-panelDark flex flex-col flex-shrink-0 shadow-2xl lg:shadow-lg border-r border-slate-200 dark:border-slate-800/50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-[300] transform transition-all duration-300 lg:relative lg:translate-x-0 bg-white dark:bg-igs-panelDark flex flex-col flex-shrink-0 shadow-2xl lg:shadow-lg border-r border-slate-200 dark:border-slate-800/50 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}`}>
         
         <div className={`p-4 pb-2 flex ${isSidebarCollapsed ? 'flex-col gap-4' : 'justify-between'} items-center`}>
           {!isSidebarCollapsed && (
