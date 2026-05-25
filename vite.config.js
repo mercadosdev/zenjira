@@ -3,23 +3,29 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  // MANTENHA A SUA BASE AQUI PARA O GITHUB PAGES CONTINUAR FUNCIONANDO
-  base: '/zenjira/', 
+  // Usar caminho relativo resolve 99% dos problemas com subpastas no Github Pages
+  base: './', 
   
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate', // Atualiza o app automaticamente quando houver nova versão
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'], // Arquivos extras na pasta public
+      registerType: 'autoUpdate',
+      injectRegister: 'auto',
+      workbox: {
+        clientsClaim: true,
+        skipWaiting: true,
+        navigateFallback: 'index.html', // Redireciona para o app caso o SW se perca
+      },
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Zenjira',
+        name: 'Zenjira | IGS Kanban',
         short_name: 'Zenjira',
-        description: 'Plataforma Kanban e Gestão de Demandas',
-        theme_color: '#000000',
-        background_color: '#000000',
-        display: 'standalone', // Faz o app abrir sem a barra de URL do navegador
-        scope: '/',
-        start_url: '/',
+        description: 'Plataforma Kanban e Gestão de Demandas IGS',
+        theme_color: '#0f172a', 
+        background_color: '#0f172a',
+        display: 'standalone',
+        scope: './',      // Escopo relativo
+        start_url: './',  // URL de início relativa
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -35,7 +41,7 @@ export default defineConfig({
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable' // Recomendado para Android/iOS arredondarem o ícone
+            purpose: 'any maskable'
           }
         ]
       }
